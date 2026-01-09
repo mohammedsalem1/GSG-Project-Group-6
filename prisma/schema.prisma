@@ -11,6 +11,12 @@ datasource db {
 // ENUMS
 //////////////////////
 
+enum Role {
+  USER
+  ADMIN
+}
+
+
 enum Availability {
   WEEKENDS
   MORNING
@@ -97,6 +103,7 @@ model User {
   email         String        @unique
   password      String
   phoneNumber   String?
+  role          Role          @default(USER)
   bio           String?
   image         String?
   country       String?

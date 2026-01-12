@@ -22,5 +22,9 @@ export class CreateUserDto {
         { message: 'Password too weak' },
       )
       password: string;
+
+      @IsNotEmpty()
+      @IsString()
+      otpCode:string
 }
 

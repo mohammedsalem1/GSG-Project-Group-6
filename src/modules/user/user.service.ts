@@ -11,11 +11,13 @@ export class UserService {
   findUserByEmail(email:string) {
     return this.prismaService.user.findUnique({where:{email}})
   }
-  updateVerifiedUser(email:string) {
+  verifyUserEmail(email:string) {
      return this.prismaService.user.update({
       where:{email},
       data:{
-        isVerified:true
+        isVerified:true,
+        otpCode: null,
+        otpSendAt: null
       }
      })  
   }

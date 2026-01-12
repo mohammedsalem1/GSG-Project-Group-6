@@ -112,7 +112,9 @@ model User {
   availability  Availability?
   isActive      Boolean       @default(true)
   isVerified    Boolean       @default(false)
-
+  otpCode       String? 
+  otpSendAt     DateTime?      @default(now())
+  
   skills        UserSkill[]
   sentSwaps     SwapRequest[] @relation("Requester")
   receivedSwaps SwapRequest[] @relation("Receiver")

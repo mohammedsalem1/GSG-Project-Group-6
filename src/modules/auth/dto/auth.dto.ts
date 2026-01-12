@@ -50,3 +50,15 @@ export class VerifyEmailDto {
     @IsString()
     token:string
 }
+
+export class VerifyOtpDto {
+    @ApiProperty({ example: 'mohammed@gmail.com' })
+    @IsNotEmpty()
+    @IsEmail()
+    email:string
+
+    @ApiProperty({ example: '654328' })
+    @IsNotEmpty()
+    @IsString()
+    otpCode:string
+}

@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { UserModule } from '../user/user.module';
+import { MailModule } from '../mail/mail.module';
+
+@Module({
+  imports:[UserModule , MailModule],
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EnvVariables } from 'src/common/types/declaration-mergin';

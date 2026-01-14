@@ -8,6 +8,7 @@ export type EnvVariables = {
   MAIL_USER:string;
   MAIL_PASSWORD:string;
   MAIL_FROM:string
+  OTP_EXPIRES_IN:string
   NODE_ENV: 'development' | 'production';
 };
 

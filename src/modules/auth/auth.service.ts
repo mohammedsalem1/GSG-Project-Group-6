@@ -82,3 +82,7 @@ export class AuthService {
         return 'Email verified successfully';
     }
 }
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AuthService {}

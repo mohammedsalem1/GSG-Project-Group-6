@@ -42,3 +42,7 @@ export class AuthController {
       return this.authService.verifyOTP(verifyOtp.email , verifyOtp.otpCode)
    }
 }
+import { Controller } from '@nestjs/common';
+
+@Controller('auth')
+export class AuthController {}

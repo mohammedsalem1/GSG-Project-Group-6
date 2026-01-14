@@ -62,3 +62,25 @@ export class VerifyOtpDto {
     @IsString()
     otpCode:string
 }
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'mohammed@gmail.com' })
+    @IsNotEmpty()
+    @IsEmail()
+    email:string
+}
+
+export class ResetPasswordDto {
+    @ApiProperty({ example: '59626b92f3a7930812fe4d6677769668e1c9e95002b0f1d80aaa732bccd4d113.681e870d-39d6-4c0c-867b-2d0b1ce4628b' })
+    @IsNotEmpty()
+    @IsString()
+    token:string
+
+    @ApiProperty({ example: 'P@ssw0rd!' })
+    @IsNotEmpty()
+    @IsString()
+    @MinLength(8)
+    @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+     { message: 'Password too weak' },
+    )
+    newPassword: string;
+}

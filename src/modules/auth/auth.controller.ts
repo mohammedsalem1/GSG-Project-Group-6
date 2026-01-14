@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, Query, UsePipes } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
-import { RegisterDto, VerifyEmailDto, VerifyOtpDto } from './dto/auth.dto';
+import { ForgotPasswordDto, RegisterDto, ResetPasswordDto, VerifyEmailDto, VerifyOtpDto } from './dto/auth.dto';
 
 
 @ApiTags('auth')
@@ -40,5 +40,26 @@ export class AuthController {
     @Body() verifyOtp:VerifyOtpDto
    ) {
       return this.authService.verifyOTP(verifyOtp.email , verifyOtp.otpCode)
+   }
+
+   @ApiOperation({summary:'Forgot Password'})
+   @ApiOkResponse({description:"Check your email for a password reset link if this address is associated with an account."})
+   @Post('forgot-password')
+   async forgotPassword(
+      @Body() forgotPasswordDto:ForgotPasswordDto
+   ){
+      const {email} = forgotPasswordDto
+      console.log(email)
+      return this.authService.forgotPassword(email)
+
+   }
+
+   @ApiOperation({summary:'Reset Password'})
+   @ApiOkResponse({description:"Reset Paswword successfully"})
+   @Post('reset-password')
+   async resetPassword(
+      @Body() resetPasswordDto:ResetPasswordDto
+   ){
+      return this.authService.resetPassword(resetPasswordDto)
    }
 }

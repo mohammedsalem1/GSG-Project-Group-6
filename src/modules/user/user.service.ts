@@ -21,4 +21,31 @@ export class UserService {
       }
      })  
   }
+
+  savePasswordResetToken(hashKey:string , email:string) {
+       return this.prismaService.user.update({
+        where:{email},
+        data:{
+          otpCode:hashKey,
+          otpSendAt:new Date()
+        }
+       })    
+  }
+  findUserByToken(token:string) {
+    return this.prismaService.user.findFirst({
+      where:{
+        otpCode:token
+      }
+    })
+  }
+  updatePasswordAndClearOtp(email:string, newPassword:string) {
+    return this.prismaService.user.update({
+      where:{email} , 
+      data:{
+        password:newPassword,
+        otpCode:null,
+        otpSendAt:null
+      }
+    })
+  }
 }

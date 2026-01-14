@@ -1,13 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { RegisterDto } from './dto/auth.dto';
+import { RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { PrismaService } from '../../database/prisma.service';
 import { UserService } from '../user/user.service';
 import { compareOTP, hashOTP, hashPassword } from '../../common/utils/hash.util';
-import { generateVerifyToken, verifyToken } from 'src/common/utils/token.util';
 import { MailService } from '../mail/mail.service';
 import { generateOtp } from 'src/common/utils/otp.util';
 import { ConfigService } from '@nestjs/config';
-import { EnvVariables } from 'src/common/types/declaration-mergin';
+import { UserEmailPayload } from './types/auth.types';
+import { User } from '@prisma/client';
+import { generateResetToken, hashResetToken } from 'src/common/utils/token.util';
 @Injectable()
 export class AuthService {
     constructor(
@@ -32,6 +33,11 @@ export class AuthService {
             otpCode:hashedOtp
         })
 
+        const userEmailPayload:UserEmailPayload = {
+            id : createdUser.id,
+            email:createdUser.email,
+            userName:createdUser.userName
+        }
         await this.mailService.sendUserConfirmation(createdUser, otp) 
 
         return 'Your account created successfully. Please verify your email' 
@@ -61,16 +67,18 @@ export class AuthService {
         if (!foundUser) {
             throw new NotFoundException('the User not Found')
          } 
+
+         if (foundUser.isVerified) {
+              return 'Email is already verified'    
+         }
+
          const otpExpiresIn  = this.configService.getOrThrow<number>('OTP_EXPIRES_IN') * 1000;
          
          if (!foundUser.otpCode || Date.now() - foundUser.otpSendAt!.getTime() > otpExpiresIn) {
             throw new BadRequestException('OTP expired')
          }
 
-        if (foundUser.isVerified) {
-              return 'Email is already verified'    
-         }  
-         
+          
         const isOtpValid = await compareOTP(otpCode, foundUser.otpCode)
         if (!isOtpValid) {
             throw new BadRequestException('the otp not correct')
@@ -81,4 +89,48 @@ export class AuthService {
 
         return 'Email verified successfully';
     }
+
+    async forgotPassword(email:string):Promise<string> {
+        const foundUser = await this.userService.findUserByEmail(email)
+
+        if (!foundUser) {
+            throw new NotFoundException('User not found')
+        }
+
+        if (!foundUser.isVerified) {
+            throw new BadRequestException('user not verified')
+        }
+        // generate HashKey and store in otpCode 
+        const resetToken =  generateResetToken()
+        const hashedResetToken =  hashResetToken(resetToken)
+        
+        await  this.userService.savePasswordResetToken(hashedResetToken  , email)
+
+        const userEmailPayload:UserEmailPayload = {
+            id : foundUser.id,
+            email:foundUser.email,
+            userName:foundUser.userName
+        }
+
+        await this.mailService.sendPasswordResetEmail(userEmailPayload , resetToken) 
+
+        return 'Password reset email sent successfully'
+    }
+    async resetPassword(resetPasswordDto:ResetPasswordDto):Promise<string> {
+        const { token , newPassword} = resetPasswordDto;
+        
+        const hashedResetToken = hashResetToken(token) 
+        const foundUser = await this.userService.findUserByToken(hashedResetToken)
+
+
+        if (!foundUser) {
+            throw new BadRequestException('This token does not belong to any user')
+        }
+
+        const hashedPassword = await hashPassword(newPassword)
+        await this.userService.updatePasswordAndClearOtp(foundUser.email , hashedPassword)
+
+        return 'Password reset successfully'
+    }
+
 }

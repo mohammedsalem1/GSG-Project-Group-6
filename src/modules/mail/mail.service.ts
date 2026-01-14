@@ -1,13 +1,13 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
 import { User } from '@prisma/client';
+import { UserEmailPayload } from '../auth/types/auth.types';
 
 @Injectable()
 export class MailService {
   constructor(private mailerService: MailerService) {}
 
   async sendUserConfirmation(user:User, otp: string) {
-  // const url = `http://localhost:3000/auth/confirm?token=${token}&email=${user.email}`;
   await this.mailerService.sendMail({
     to: user.email,
     subject: 'Welcome to Nice App! Confirm your Email',
@@ -23,4 +23,25 @@ export class MailService {
   console.log(`✅ Email sent successfully`);
   return true;
  }
+  
+  async sendPasswordResetEmail(user: UserEmailPayload, token: string) {
+  const url = `http://localhost:3000/auth/reset-password?token=${token}`;
+
+  await this.mailerService.sendMail({
+    to: user.email,
+    subject: 'Reset Your Password',
+    html: `
+      <p>Hi ${user.userName},</p>
+      <p>You requested to reset your password.</p>
+      <p>Click the link below to set a new password:</p>
+
+      <a href="${url}">
+         Reset Password
+      </a>
+
+      <p>If you did not request this, please ignore this email.</p>
+    `,
+  });
+}
+
 }

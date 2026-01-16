@@ -1,27 +1,52 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { JwtModule, JwtModuleOptions, JwtService } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
-import { UserModule } from '../user/user.module';
-import { MailModule } from '../mail/mail.module';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { DatabaseModule } from 'src/database/database.module';
+import { UserModule } from 'src/modules/user/user.module';
+import { MailModule } from 'src/modules/mail/mail.module';
+import jwtConfig from 'src/config/jwt.config';
 
 @Module({
-  imports:[UserModule , MailModule],
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { EnvVariables } from 'src/common/types/declaration-mergin';
-
-@Module({
-  imports:[
+  imports: [
+    DatabaseModule,
+    UserModule,
+    MailModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    ConfigModule.forFeature(jwtConfig),
     JwtModule.registerAsync({
-      global:true,
-      inject:[ConfigService],
-      useFactory:(configService:ConfigService<EnvVariables>) => ({
-        secret:configService.getOrThrow('JWT_SECRET'),
-        signOptions:{expiresIn:configService.getOrThrow('JWT_EXPIRES_IN')}
-      })
-    })
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const secret = configService.get<string>('jwt.secret');
+        const expiresIn = configService.get<string>('jwt.expiresIn');
+
+        if (!secret) {
+          throw new Error(
+            'JWT_SECRET is not configured in environment variables',
+          );
+        }
+
+        if (!expiresIn) {
+          throw new Error(
+            'JWT_EXPIRES_IN is not configured in environment variables',
+          );
+        }
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn,
+          },
+        } as JwtModuleOptions; // ✅ Explicit type assertion
+      },
+    }),
   ],
-  providers: [AuthService],
-  controllers: [AuthController]
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService, JwtService],
 })
 export class AuthModule {}

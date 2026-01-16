@@ -1,4 +1,3 @@
-
 import crypto from 'crypto';
 
 export const generateVerifyToken = (
@@ -6,7 +5,7 @@ export const generateVerifyToken = (
   email: string,
   minutesValid: number,
 ) => {
-  const expires = Date.now() + minutesValid * 60 * 1000; 
+  const expires = Date.now() + minutesValid * 60 * 1000;
   const data = `${userId}.${email}.${expires}`;
 
   const signature = crypto
@@ -24,7 +23,7 @@ export const verifyToken = (
 ): boolean => {
   const [signature, expiresStr] = token.split('.');
   const expires = Number(expiresStr);
-  console.log(signature)
+  console.log(signature);
   if (Date.now() > expires) {
     console.error('Token expired');
     return false;
@@ -40,4 +39,4 @@ export const verifyToken = (
   const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
   return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
-}
+};

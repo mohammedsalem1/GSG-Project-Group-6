@@ -372,7 +372,7 @@ model UserToken {
   id         String    @id @default(uuid())
   user       User      @relation(fields: [userId], references: [id])
   userId     String
-  token      String
+  token      String      @db.Text
   expiresAt  DateTime
   type       TokenType
   isRevoked  Boolean   @default(false)

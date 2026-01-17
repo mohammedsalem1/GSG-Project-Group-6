@@ -69,6 +69,7 @@ export class AuthController {
   }
 
    @ApiOperation({summary:'Forgot Password'})
+   @Public()
    @ApiOkResponse({description:"Check your email for a password reset link if this address is associated with an account."})
    @Post('forgot-password')
    async forgotPassword(
@@ -81,6 +82,7 @@ export class AuthController {
    }
 
    @ApiOperation({summary:'Reset Password'})
+   @Public()
    @ApiOkResponse({description:"Reset Paswword successfully"})
    @Post('reset-password')
    async resetPassword(

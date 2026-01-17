@@ -104,6 +104,7 @@ export class AuthService {
    * User Login
    */
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+    
     const { email, password } = loginDto;
 
     // Find user by email
@@ -137,14 +138,12 @@ export class AuthService {
         'Please verify your email before logging in',
       );
     }
-
     // Compare passwords
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
-
     // Generate tokens
     const { accessToken, refreshToken } = await this.generateTokens({
       sub: user.id,
@@ -217,6 +216,8 @@ export class AuthService {
     // Calculate expiration date (7 days from now)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
+    console.log('ssssssssssss')
+    console.log("refreshToken length:", refreshToken.length);
 
     // Save to database
     await this.prisma.userToken.create({

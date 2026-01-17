@@ -1,46 +1,72 @@
-import { Body, Controller, Get, Post, Query, UsePipes } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
-import { ForgotPasswordDto, RegisterDto, ResetPasswordDto, VerifyEmailDto, VerifyOtpDto } from './dto/auth.dto';
 
+import {
+  Body,
+  Controller,
+  Post,
+  UsePipes,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { AuthService } from './auth.service';
+import {
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
+import { ForgotPasswordDto, RegisterDto, ResetPasswordDto, VerifyOtpDto } from './dto/auth.dto';
+import { LoginDto } from './dto/login.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
    constructor(private readonly authService:AuthService){}
    
-   
-   @Post('register')
-   @UsePipes(ConfirmPasswordPipe)
-   @ApiOperation({summary:"User Register"})
-   @ApiCreatedResponse({description:"the user register successfully"})
-   @ApiBadRequestResponse({description:"User already exists"})
-   // TODO IsPublic('true')
-   async register(@Body() registerDto:RegisterDto):Promise<string> {
-       return await this.authService.register(registerDto)
-   }
+  @Post('register')
+  @Public()
+  @UsePipes(ConfirmPasswordPipe)
+  @ApiOperation({ summary: 'User Register' })
+  @ApiCreatedResponse({ description: 'The user registered successfully' })
+  @ApiBadRequestResponse({ description: 'User already exists' })
+  async register(@Body() registerDto: RegisterDto): Promise<string> {
+    return await this.authService.register(registerDto);
+  }
 
-//    @ApiOperation({summary:"Verify User"})
-//    @Get('verify-email')
-//    async verifyEmail(
-//       @Query()verifyEmailDto:VerifyEmailDto) {
-    
-//       const {email , token} = verifyEmailDto
-//       return await this.authService.verifyEmail(email, token);
-//   }
+  @Post('verify-otp')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify OTP' })
+  @ApiOkResponse({ description: 'User verified successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid OTP code or OTP expired' })
+  @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+  async verifyOtp(@Body() verifyOtp: VerifyOtpDto): Promise<string> {
+    return this.authService.verifyOTP(verifyOtp.email, verifyOtp.otpCode);
+  }
 
-
-   @ApiOperation({summary:"Verify OTP"})
-   @ApiOkResponse({description:"the verify User successfully"})
-   @ApiInternalServerErrorResponse({description:"Internal server error"})
-   @ApiBadRequestResponse({description:"the otp not correct"})
-   @Post('verify-otp')
-   async verifyOtp(
-    @Body() verifyOtp:VerifyOtpDto
-   ) {
-      return this.authService.verifyOTP(verifyOtp.email , verifyOtp.otpCode)
-   }
+  @Post('login')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'User Login' })
+  @ApiOkResponse({
+    description: 'Login successful',
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description:
+      'Invalid credentials, account not verified, or account inactive',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input data',
+  })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    return this.authService.login(loginDto);
+  }
 
    @ApiOperation({summary:'Forgot Password'})
    @ApiOkResponse({description:"Check your email for a password reset link if this address is associated with an account."})

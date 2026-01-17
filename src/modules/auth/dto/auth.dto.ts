@@ -1,16 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsBoolean,
   IsEmail,
-  IsEnum,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   MinLength,
 } from 'class-validator';
 
-export class RegisterDto  {
+export class RegisterDto {
   @ApiProperty({ example: 'mohammed' })
   @IsNotEmpty()
   @IsString()
@@ -26,39 +23,37 @@ export class RegisterDto  {
   @IsNotEmpty()
   @IsString()
   @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-    { message: 'Password too weak' },
-  )
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
+    message: 'Password too weak',
+  })
   password: string;
 
   @ApiProperty({ example: 'P@ssw0rd!', writeOnly: true })
   @IsNotEmpty()
   @IsString()
   confirmPassword: string;
-
 }
 export class VerifyEmailDto {
+  @ApiProperty({ example: 'mohammed@gmail.com' })
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
 
-    @ApiProperty({ example: 'mohammed@gmail.com' })
-    @IsNotEmpty()
-    @IsEmail()
-    email:string
-
-    @ApiProperty({ example: 'hifewfuweuijfhuicwuceyicheygfbvicldsadc' })
-    @IsNotEmpty()
-    @Matches(/^[a-f0-9]+\.\d+$/, { message: 'Invalid token format' })
-    @IsString()
-    token:string
+  @ApiProperty({ example: 'hifewfuweuijfhuicwuceyicheygfbvicldsadc' })
+  @IsNotEmpty()
+  @Matches(/^[a-f0-9]+\.\d+$/, { message: 'Invalid token format' })
+  @IsString()
+  token: string;
 }
 
 export class VerifyOtpDto {
-    @ApiProperty({ example: 'mohammed@gmail.com' })
-    @IsNotEmpty()
-    @IsEmail()
-    email:string
+  @ApiProperty({ example: 'mohammed@gmail.com' })
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
 
-    @ApiProperty({ example: '654328' })
-    @IsNotEmpty()
-    @IsString()
-    otpCode:string
+  @ApiProperty({ example: '654328' })
+  @IsNotEmpty()
+  @IsString()
+  otpCode: string;
 }

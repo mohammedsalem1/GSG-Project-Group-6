@@ -6,12 +6,13 @@ import appConfig from './config/app.config';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import jwtConfig from './config/jwt.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig],
+      load: [appConfig, jwtConfig],
       envFilePath: '.env',
     }),
     DatabaseModule,

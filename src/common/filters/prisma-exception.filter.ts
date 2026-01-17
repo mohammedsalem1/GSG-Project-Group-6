@@ -9,7 +9,6 @@ export class PrismaExceptionFilter extends BaseExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     switch (exception.code) {
       case 'P2002':
         // Unique constraint violation

@@ -12,7 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/database/prisma.service';
 import { UserService } from 'src/modules/user/user.service';
 import { MailService } from 'src/modules/mail/mail.service';
-import { RegisterDto } from './dto/auth.dto';
+import { RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import { JwtPayload } from 'src/common/interfaces/jwt-payload.interface';
@@ -25,6 +25,9 @@ import {
   compareOTP,
 } from 'src/common/utils/hash.util';
 import { generateOtp } from 'src/common/utils/otp.util';
+import { generateResetToken, hashResetToken } from 'src/common/utils/token.util';
+import { UserEmailPayload } from './types/auth.types';
+import { EmailPurpose } from '../mail/enums/email-purpose.enum';
 
 @Injectable()
 export class AuthService {
@@ -55,9 +58,11 @@ export class AuthService {
       email: registerDto.email,
       password: hashedPassword,
       otpCode: hashedOtp,
+      otpSendAt: new Date(),
+
     });
 
-    await this.mailService.sendUserConfirmation(createdUser, otp);
+    await this.mailService.sendOtpEmail(createdUser, otp , EmailPurpose.VERIFY_EMAIL);
 
     return 'Your account created successfully. Please verify your email';
   }
@@ -66,42 +71,47 @@ export class AuthService {
    * Verify OTP
    */
   async verifyOTP(email: string, otpCode: string): Promise<string> {
-    const foundUser = await this.userService.findUserByEmail(email);
+  const user = await this.validateOtp(email, otpCode);
 
-    if (!foundUser) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (foundUser.isVerified) {
-      return 'Email is already verified';
-    }
-
-    const otpExpiresIn =
-      this.configService.getOrThrow<number>('OTP_EXPIRES_IN') * 1000;
-
-    if (
-      !foundUser.otpCode ||
-      !foundUser.otpSendAt ||
-      Date.now() - foundUser.otpSendAt.getTime() > otpExpiresIn
-    ) {
-      throw new BadRequestException('OTP expired');
-    }
-
-    const isOtpValid = await compareOTP(otpCode, foundUser.otpCode);
-
-    if (!isOtpValid) {
-      throw new BadRequestException('Invalid OTP code');
-    }
-
-    await this.userService.verifyUserEmail(email);
-
-    return 'Email verified successfully';
+  if (user.isVerified) {
+    return 'Email is already verified';
   }
 
+  await this.userService.verifyUserEmail(email);
+
+  return 'Email verified successfully';
+}
+
+
+  async validateOtp(email: string, otp: string) {
+    const user = await this.userService.findUserByEmail(email);
+
+     if (!user || !user.otpCode || !user.otpSendAt) {
+       throw new BadRequestException('Invalid OTP');
+  }
+
+  const otpExpiresIn =
+    this.configService.getOrThrow<number>('OTP_EXPIRES_IN') * 1000;
+
+  if (Date.now() - user.otpSendAt.getTime() > otpExpiresIn) {
+    throw new BadRequestException('OTP expired');
+  }
+
+  const isValid = await compareOTP(otp, user.otpCode);
+
+  if (!isValid) {
+    throw new BadRequestException('Invalid OTP');
+  }
+
+  return user;
+}
+
+  
   /**
    * User Login
    */
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+    
     const { email, password } = loginDto;
 
     // Find user by email
@@ -135,14 +145,12 @@ export class AuthService {
         'Please verify your email before logging in',
       );
     }
-
     // Compare passwords
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
-
     // Generate tokens
     const { accessToken, refreshToken } = await this.generateTokens({
       sub: user.id,
@@ -249,4 +257,48 @@ export class AuthService {
 
     return user as RequestUser;
   }
+  async forgotPassword(email:string):Promise<string> {
+        const foundUser = await this.userService.findUserByEmail(email)
+
+        if (!foundUser) {
+            throw new NotFoundException('User not found')
+        }
+
+        if (!foundUser.isVerified) {
+            throw new BadRequestException('user not verified')
+        }
+        // generate HashKey and store in otpCode 
+        // const resetToken =  generateResetToken()
+        // const hashedResetToken =  hashResetToken(resetToken)
+
+          const otp = generateOtp(); 
+          const hashedOtp = await hashOTP(otp);
+        
+        await  this.userService.updateOtp(hashedOtp  , email)
+
+        const userEmailPayload:UserEmailPayload = {
+            id : foundUser.id,
+            email:foundUser.email,
+            userName:foundUser.userName
+        }
+
+        await this.mailService.sendOtpEmail(userEmailPayload , otp , EmailPurpose.RESET_PASSWORD) 
+
+        return 'Password reset email sent successfully'
+  }
+  async resetPassword(dto: ResetPasswordDto): Promise<string> {
+       const { email, otpCode, newPassword } = dto;
+
+       await this.validateOtp(email, otpCode);
+
+       const hashedPassword = await hashPassword(newPassword);
+
+       await this.userService.updatePasswordAndClearOtp(
+           email,
+           hashedPassword,
+       );
+
+  return 'Password reset successfully';
+    }
 }
+

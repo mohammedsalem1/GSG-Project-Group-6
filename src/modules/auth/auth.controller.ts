@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -17,7 +18,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
-import { RegisterDto, VerifyOtpDto } from './dto/auth.dto';
+import { ForgotPasswordDto, RegisterDto, ResetPasswordDto, VerifyOtpDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
@@ -25,8 +26,8 @@ import { Public } from './decorators/public.decorator';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
-
+   constructor(private readonly authService:AuthService){}
+   
   @Post('register')
   @Public()
   @UsePipes(ConfirmPasswordPipe)
@@ -66,4 +67,27 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
   }
+
+   @ApiOperation({summary:'Forgot Password'})
+   @Public()
+   @ApiOkResponse({description:"Check your email for a password reset link if this address is associated with an account."})
+   @Post('forgot-password')
+   async forgotPassword(
+      @Body() forgotPasswordDto:ForgotPasswordDto
+   ){
+      const {email} = forgotPasswordDto
+      console.log(email)
+      return this.authService.forgotPassword(email)
+
+   }
+
+   @ApiOperation({summary:'Reset Password'})
+   @Public()
+   @ApiOkResponse({description:"Reset Paswword successfully"})
+   @Post('reset-password')
+   async resetPassword(
+      @Body() resetPasswordDto:ResetPasswordDto
+   ){
+      return this.authService.resetPassword(resetPasswordDto)
+   }
 }

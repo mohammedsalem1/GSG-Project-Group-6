@@ -22,11 +22,11 @@ export class UserService {
      })  
   }
 
-  savePasswordResetToken(hashKey:string , email:string) {
+  updateOtp(hashedOtp:string , email:string) {
        return this.prismaService.user.update({
         where:{email},
         data:{
-          otpCode:hashKey,
+          otpCode:hashedOtp,
           otpSendAt:new Date()
         }
        })    

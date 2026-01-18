@@ -26,5 +26,7 @@ export class CreateUserDto {
       @IsNotEmpty()
       @IsString()
       otpCode:string
+
+      otpSendAt:Date
 }
 

@@ -1,47 +1,63 @@
+import { Injectable } from "@nestjs/common";
+import { UserEmailPayload } from "../auth/types/auth.types";
+import { EmailPurpose } from "./enums/email-purpose.enum";
 import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
-import { UserEmailPayload } from '../auth/types/auth.types';
 
 @Injectable()
 export class MailService {
   constructor(private mailerService: MailerService) {}
 
-  async sendUserConfirmation(user:User, otp: string) {
-  await this.mailerService.sendMail({
-    to: user.email,
-    subject: 'Welcome to Nice App! Confirm your Email',
-    html: `
-      <p>Hey ${user.userName},</p>
-      <p>Your verification code is:</p>
-       <div style="font-size:24px; font-weight:bold; letter-spacing:4px;">
-          ${otp}
-       </div>
-      <p>If you did not request this email you can safely ignore it.</p>
-    `
-  });
-  console.log(`✅ Email sent successfully`);
-  return true;
- }
-  
-  async sendPasswordResetEmail(user: UserEmailPayload, token: string) {
-  const url = `http://localhost:3000/auth/reset-password?token=${token}`;
+  async sendOtpEmail(
+    user: UserEmailPayload,
+    otp: string,
+    purpose: EmailPurpose,
+  ): Promise<void> {
+    const template = this.getOtpTemplate(user, otp, purpose);
 
-  await this.mailerService.sendMail({
-    to: user.email,
-    subject: 'Reset Your Password',
-    html: `
-      <p>Hi ${user.userName},</p>
-      <p>You requested to reset your password.</p>
-      <p>Click the link below to set a new password:</p>
+    await this.mailerService.sendMail({
+      to: user.email,
+      subject: template.subject,
+      html: template.html,
+    });
 
-      <a href="${url}">
-         Reset Password
-      </a>
+    console.log(`✅ ${purpose} email sent to ${user.email}`);
+  }
 
-      <p>If you did not request this, please ignore this email.</p>
-    `,
-  });
-}
+  private getOtpTemplate(
+    user: UserEmailPayload,
+    otp: string,
+    purpose: EmailPurpose,
+  ): { subject: string; html: string } {
+    switch (purpose) {
+      case EmailPurpose.VERIFY_EMAIL:
+        return {
+          subject: 'Confirm your email',
+          html: `
+            <p>Hi ${user.userName},</p>
+            <p>Your email verification code is:</p>
+            <div style="font-size:24px;font-weight:bold;letter-spacing:4px;">
+              ${otp}
+            </div>
+            <p>This code will expire in 15 minutes.</p>
+          `,
+        };
 
+      case EmailPurpose.RESET_PASSWORD:
+        return {
+          subject: 'Reset your password',
+          html: `
+            <p>Hi ${user.userName},</p>
+            <p>You requested to reset your password.</p>
+            <p>Your reset code is:</p>
+            <div style="font-size:24px;font-weight:bold;letter-spacing:4px;">
+              ${otp}
+            </div>
+            <p>This code will expire in 15 minutes.</p>
+          `,
+        };
+
+      default:
+        throw new Error('Invalid email purpose');
+    }
+  }
 }

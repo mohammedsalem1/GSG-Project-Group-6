@@ -37,3 +37,11 @@ export class AuthResponseDto {
   @ApiProperty()
   expiresIn: string;
 }
+
+export class RefreshTokenResponseDto {
+  @ApiProperty()
+  accessToken: string;
+
+  @ApiProperty()
+  expiresIn: string;
+}

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MailerModule, MailerService } from '@nestjs-modules/mailer';
+import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { EnvVariables } from 'src/common/types/declaration-mergin';
 import { MailService } from './mail.service';

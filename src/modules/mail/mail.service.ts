@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { UserEmailPayload } from "../auth/types/auth.types";
-import { EmailPurpose } from "./enums/email-purpose.enum";
+import { Injectable } from '@nestjs/common';
+import { UserEmailPayload } from '../auth/types/auth.types';
+import { EmailPurpose } from './enums/email-purpose.enum';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()

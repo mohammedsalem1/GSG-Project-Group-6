@@ -375,9 +375,6 @@ model UserToken {
   token      String      @db.Text
   expiresAt  DateTime
   type       TokenType
-  isRevoked  Boolean   @default(false)
-  revokedAt  DateTime?
-  revokeReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

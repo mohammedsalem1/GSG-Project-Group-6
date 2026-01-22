@@ -1,4 +1,3 @@
-
 import {
   Body,
   Controller,
@@ -6,28 +5,39 @@ import {
   UsePipes,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
   ApiInternalServerErrorResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
-import { ForgotPasswordDto, RegisterDto, ResetPasswordDto, VerifyOtpDto } from './dto/auth.dto';
+import {
+  ForgotPasswordDto,
+  RefreshTokenDto,
+  RegisterDto,
+  ResetPasswordDto,
+  VerifyOtpDto,
+} from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
+import type { RequestUser } from 'src/common/types/user.types';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-   constructor(private readonly authService:AuthService){}
-   
+  constructor(private readonly authService: AuthService) {}
+
   @Post('register')
   @Public()
   @UsePipes(ConfirmPasswordPipe)
@@ -68,26 +78,62 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-   @ApiOperation({summary:'Forgot Password'})
-   @Public()
-   @ApiOkResponse({description:"Check your email for a password reset link if this address is associated with an account."})
-   @Post('forgot-password')
-   async forgotPassword(
-      @Body() forgotPasswordDto:ForgotPasswordDto
-   ){
-      const {email} = forgotPasswordDto
-      console.log(email)
-      return this.authService.forgotPassword(email)
+  @ApiOperation({ summary: 'Forgot Password' })
+  @Public()
+  @ApiOkResponse({
+    description:
+      'Check your email for a password reset link if this address is associated with an account.',
+  })
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+    console.log(email);
+    return this.authService.forgotPassword(email);
+  }
 
-   }
+  @ApiOperation({ summary: 'Reset Password' })
+  @Public()
+  @ApiOkResponse({ description: 'Reset Paswword successfully' })
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
 
-   @ApiOperation({summary:'Reset Password'})
-   @Public()
-   @ApiOkResponse({description:"Reset Paswword successfully"})
-   @Post('reset-password')
-   async resetPassword(
-      @Body() resetPasswordDto:ResetPasswordDto
-   ){
-      return this.authService.resetPassword(resetPasswordDto)
-   }
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'User Logout' })
+  @ApiNoContentResponse({
+    description: 'Logout successful',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid or missing token',
+  })
+  async logout(@CurrentUser() user: RequestUser): Promise<void> {
+    await this.authService.logout(user.id);
+  }
+
+  @Post('refresh')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh Access Token' })
+  @ApiOkResponse({
+    description: 'New access token generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        accessToken: { type: 'string' },
+        expiresIn: { type: 'string' },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid or missing refresh token',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Refresh token expired or revoked',
+  })
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(refreshTokenDto.refreshToken);
+  }
 }

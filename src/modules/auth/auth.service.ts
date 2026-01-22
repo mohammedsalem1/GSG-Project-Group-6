@@ -14,7 +14,11 @@ import { UserService } from 'src/modules/user/user.service';
 import { MailService } from 'src/modules/mail/mail.service';
 import { RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
+import {
+  AuthResponseDto,
+  RefreshTokenResponseDto,
+  UserResponseDto,
+} from './dto/auth-response.dto';
 import { JwtPayload } from 'src/common/interfaces/jwt-payload.interface';
 import { RequestUser } from 'src/common/types/user.types';
 import { TokenType } from '@prisma/client';
@@ -25,7 +29,10 @@ import {
   compareOTP,
 } from 'src/common/utils/hash.util';
 import { generateOtp } from 'src/common/utils/otp.util';
-import { generateResetToken, hashResetToken } from 'src/common/utils/token.util';
+// import {
+//   generateResetToken,
+//   hashResetToken,
+// } from 'src/common/utils/token.util';
 import { UserEmailPayload } from './types/auth.types';
 import { EmailPurpose } from '../mail/enums/email-purpose.enum';
 
@@ -59,10 +66,22 @@ export class AuthService {
       password: hashedPassword,
       otpCode: hashedOtp,
       otpSendAt: new Date(),
-
     });
 
-    await this.mailService.sendOtpEmail(createdUser, otp , EmailPurpose.VERIFY_EMAIL);
+    try {
+      await this.mailService.sendOtpEmail(
+        createdUser,
+        otp,
+        EmailPurpose.VERIFY_EMAIL,
+      );
+    } catch (error) {
+      await this.prisma.user.delete({
+        where: { id: createdUser.id },
+      });
+      throw new BadRequestException(
+        'Failed to send verification email. Please try registering again.',
+      );
+    }
 
     return 'Your account created successfully. Please verify your email';
   }
@@ -71,47 +90,44 @@ export class AuthService {
    * Verify OTP
    */
   async verifyOTP(email: string, otpCode: string): Promise<string> {
-  const user = await this.validateOtp(email, otpCode);
+    const user = await this.validateOtp(email, otpCode);
 
-  if (user.isVerified) {
-    return 'Email is already verified';
+    if (user.isVerified) {
+      return 'Email is already verified';
+    }
+
+    await this.userService.verifyUserEmail(email);
+
+    return 'Email verified successfully';
   }
-
-  await this.userService.verifyUserEmail(email);
-
-  return 'Email verified successfully';
-}
-
 
   async validateOtp(email: string, otp: string) {
     const user = await this.userService.findUserByEmail(email);
 
-     if (!user || !user.otpCode || !user.otpSendAt) {
-       throw new BadRequestException('Invalid OTP');
+    if (!user || !user.otpCode || !user.otpSendAt) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const otpExpiresIn =
+      this.configService.getOrThrow<number>('OTP_EXPIRES_IN') * 1000;
+
+    if (Date.now() - user.otpSendAt.getTime() > otpExpiresIn) {
+      throw new BadRequestException('OTP expired');
+    }
+
+    const isValid = await compareOTP(otp, user.otpCode);
+
+    if (!isValid) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    return user;
   }
 
-  const otpExpiresIn =
-    this.configService.getOrThrow<number>('OTP_EXPIRES_IN') * 1000;
-
-  if (Date.now() - user.otpSendAt.getTime() > otpExpiresIn) {
-    throw new BadRequestException('OTP expired');
-  }
-
-  const isValid = await compareOTP(otp, user.otpCode);
-
-  if (!isValid) {
-    throw new BadRequestException('Invalid OTP');
-  }
-
-  return user;
-}
-
-  
   /**
    * User Login
    */
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    
     const { email, password } = loginDto;
 
     // Find user by email
@@ -175,8 +191,92 @@ export class AuthService {
   }
 
   /**
-   * Generate Access and Refresh Tokens
+   * User Logout
    */
+  async logout(userId: string): Promise<void> {
+    try {
+      // Delete all refresh tokens for this user
+      await this.prisma.userToken.deleteMany({
+        where: {
+          userId,
+          type: TokenType.REFRESH_TOKEN,
+        },
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Logout failed');
+    }
+  }
+
+  /**
+   * Refresh Access Token
+   * Validates refresh token and generates new access token
+   */
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<RefreshTokenResponseDto> {
+    try {
+      // Verify refresh token exists in database
+      const tokenRecord = await this.prisma.userToken.findFirst({
+        where: {
+          token: refreshToken,
+          type: TokenType.REFRESH_TOKEN,
+        },
+      });
+
+      if (!tokenRecord) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Check if token is expired
+      if (new Date() > tokenRecord.expiresAt) {
+        // Delete expired token
+        await this.prisma.userToken.delete({
+          where: { id: tokenRecord.id },
+        });
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+
+      // Verify JWT signature
+      const refreshSecret = this.configService.get<string>('jwt.refreshSecret');
+      if (!refreshSecret) {
+        throw new Error('Refresh secret is not configured');
+      }
+
+      let decoded: JwtPayload;
+      try {
+        decoded = await this.jwtService.verifyAsync(refreshToken, {
+          secret: refreshSecret,
+        });
+      } catch (error) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Validate user still exists and is active
+      const user = await this.validateUser(decoded.sub);
+      if (!user) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+
+      // Generate new access token
+      const accessToken = await this.jwtService.signAsync({
+        sub: decoded.sub,
+        email: decoded.email,
+        userName: decoded.userName,
+        role: decoded.role,
+      });
+
+      return {
+        accessToken,
+        expiresIn: this.configService.get<string>('jwt.expiresIn') ?? '1d',
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Token refresh failed');
+    }
+  }
+
   /**
    * Generate Access and Refresh Tokens
    */
@@ -257,48 +357,48 @@ export class AuthService {
 
     return user as RequestUser;
   }
-  async forgotPassword(email:string):Promise<string> {
-        const foundUser = await this.userService.findUserByEmail(email)
+  async forgotPassword(email: string): Promise<string> {
+    const foundUser = await this.userService.findUserByEmail(email);
 
-        if (!foundUser) {
-            throw new NotFoundException('User not found')
-        }
+    if (!foundUser) {
+      throw new NotFoundException('User not found');
+    }
 
-        if (!foundUser.isVerified) {
-            throw new BadRequestException('user not verified')
-        }
-        // generate HashKey and store in otpCode 
-        // const resetToken =  generateResetToken()
-        // const hashedResetToken =  hashResetToken(resetToken)
+    if (!foundUser.isVerified) {
+      throw new BadRequestException('user not verified');
+    }
+    // generate HashKey and store in otpCode
+    // const resetToken =  generateResetToken()
+    // const hashedResetToken =  hashResetToken(resetToken)
 
-          const otp = generateOtp(); 
-          const hashedOtp = await hashOTP(otp);
-        
-        await  this.userService.updateOtp(hashedOtp  , email)
+    const otp = generateOtp();
+    const hashedOtp = await hashOTP(otp);
 
-        const userEmailPayload:UserEmailPayload = {
-            id : foundUser.id,
-            email:foundUser.email,
-            userName:foundUser.userName
-        }
+    await this.userService.updateOtp(hashedOtp, email);
 
-        await this.mailService.sendOtpEmail(userEmailPayload , otp , EmailPurpose.RESET_PASSWORD) 
+    const userEmailPayload: UserEmailPayload = {
+      id: foundUser.id,
+      email: foundUser.email,
+      userName: foundUser.userName,
+    };
 
-        return 'Password reset email sent successfully'
+    await this.mailService.sendOtpEmail(
+      userEmailPayload,
+      otp,
+      EmailPurpose.RESET_PASSWORD,
+    );
+
+    return 'Password reset email sent successfully';
   }
   async resetPassword(dto: ResetPasswordDto): Promise<string> {
-       const { email, otpCode, newPassword } = dto;
+    const { email, otpCode, newPassword } = dto;
 
-       await this.validateOtp(email, otpCode);
+    await this.validateOtp(email, otpCode);
 
-       const hashedPassword = await hashPassword(newPassword);
+    const hashedPassword = await hashPassword(newPassword);
 
-       await this.userService.updatePasswordAndClearOtp(
-           email,
-           hashedPassword,
-       );
+    await this.userService.updatePasswordAndClearOtp(email, hashedPassword);
 
-  return 'Password reset successfully';
-    }
+    return 'Password reset successfully';
+  }
 }
-

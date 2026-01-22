@@ -1,3 +1,3 @@
-import { User } from "@prisma/client";
+import { User } from '@prisma/client';
 
-export type UserEmailPayload  = Pick<User , 'id' | 'email' | 'userName'>
+export type UserEmailPayload = Pick<User, 'id' | 'email' | 'userName'>;

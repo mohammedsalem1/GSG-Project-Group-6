@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -51,15 +52,12 @@ export class AuthService {
    */
   async register(registerDto: RegisterDto): Promise<string> {
     const foundUser = await this.userService.findUserByEmail(registerDto.email);
-
     if (foundUser) {
       throw new BadRequestException('User already exists');
     }
-
     const hashedPassword = await hashPassword(registerDto.password);
     const otp = generateOtp();
     const hashedOtp = await hashOTP(otp);
-
     const createdUser = await this.userService.create({
       userName: registerDto.userName,
       email: registerDto.email,
@@ -67,7 +65,15 @@ export class AuthService {
       otpCode: hashedOtp,
       otpSendAt: new Date(),
     });
-
+    // ✅ TEMPORARY: Log OTP to console instead of sending email
+    console.log('='.repeat(50));
+    console.log('📧 EMAIL VERIFICATION');
+    console.log('='.repeat(50));
+    console.log('Email:', createdUser.email);
+    console.log('OTP Code:', otp);
+    console.log('='.repeat(50));
+    // ✅ TEMPORARY: Comment out email sending
+    /*
     try {
       await this.mailService.sendOtpEmail(
         createdUser,
@@ -82,8 +88,8 @@ export class AuthService {
         'Failed to send verification email. Please try registering again.',
       );
     }
-
-    return 'Your account created successfully. Please verify your email';
+    */
+    return 'Your account created successfully. Check console for OTP code.';
   }
 
   /**

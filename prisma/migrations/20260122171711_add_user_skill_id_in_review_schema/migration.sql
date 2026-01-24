@@ -14,8 +14,8 @@ CREATE TABLE `users` (
     `availability` ENUM('WEEKENDS', 'MORNING', 'EVENING', 'FLEXIBLE') NULL,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `isVerified` BOOLEAN NOT NULL DEFAULT false,
-    `otpCode` VARCHAR(191) NOT NULL,
-    `otpSendAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `otpCode` VARCHAR(191) NULL,
+    `otpSendAt` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -43,6 +43,7 @@ CREATE TABLE `skills` (
     `description` VARCHAR(191) NULL,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `categoryId` VARCHAR(191) NOT NULL,
+    `language` VARCHAR(191) NOT NULL DEFAULT 'English',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)
@@ -59,7 +60,7 @@ CREATE TABLE `user_skills` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `user_skills_userId_skillId_isOffering_key`(`userId`, `skillId`, `isOffering`),
+    UNIQUE INDEX `user_skills_userId_skillId_key`(`userId`, `skillId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -144,6 +145,7 @@ CREATE TABLE `reviews` (
     `id` VARCHAR(191) NOT NULL,
     `swapRequestId` VARCHAR(191) NOT NULL,
     `reviewerId` VARCHAR(191) NOT NULL,
+    `userSkillId` VARCHAR(191) NOT NULL,
     `reviewedId` VARCHAR(191) NOT NULL,
     `overallRating` ENUM('ONE', 'TWO', 'THREE', 'FOUR', 'FIVE') NOT NULL,
     `communicationRating` ENUM('ONE', 'TWO', 'THREE', 'FOUR', 'FIVE') NULL,
@@ -217,12 +219,9 @@ CREATE TABLE `points` (
 CREATE TABLE `user_tokens` (
     `id` VARCHAR(191) NOT NULL,
     `userId` VARCHAR(191) NOT NULL,
-    `token` VARCHAR(191) NOT NULL,
+    `token` TEXT NOT NULL,
     `expiresAt` DATETIME(3) NOT NULL,
     `type` ENUM('REFRESH_TOKEN') NOT NULL,
-    `isRevoked` BOOLEAN NOT NULL DEFAULT false,
-    `revokedAt` DATETIME(3) NULL,
-    `revokeReason` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -291,6 +290,9 @@ ALTER TABLE `reviews` ADD CONSTRAINT `reviews_reviewerId_fkey` FOREIGN KEY (`rev
 
 -- AddForeignKey
 ALTER TABLE `reviews` ADD CONSTRAINT `reviews_reviewedId_fkey` FOREIGN KEY (`reviewedId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `reviews` ADD CONSTRAINT `reviews_userSkillId_fkey` FOREIGN KEY (`userSkillId`) REFERENCES `user_skills`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `user_badges` ADD CONSTRAINT `user_badges_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

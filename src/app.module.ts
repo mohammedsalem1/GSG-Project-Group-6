@@ -6,6 +6,7 @@ import appConfig from './config/app.config';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import { SkillsModule } from './modules/skills/skills.module';
 import jwtConfig from './config/jwt.config';
 
 @Module({
@@ -18,6 +19,7 @@ import jwtConfig from './config/jwt.config';
     DatabaseModule,
     AuthModule,
     UserModule,
+    SkillsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

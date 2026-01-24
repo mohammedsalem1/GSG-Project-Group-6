@@ -159,7 +159,8 @@ model Skill {
 
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId String
-
+   
+  language   String    @default("English")
   users UserSkill[]
   sessions Session[]
 
@@ -181,10 +182,13 @@ model UserSkill {
   offeredInSwapRequests SwapRequest[] @relation("OfferedSkill")
   requestedInSwapRequests SwapRequest[] @relation("RequestedSkill")
 
+  reviews   Review[]
+
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, skillId, isOffering])
+  @@unique([userId, skillId])
   @@map("user_skills")
 }
 
@@ -278,6 +282,7 @@ model Session {
   notes           String?
   hostJoinedAt    DateTime?
   attendeeJoinedAt DateTime?
+  
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -292,6 +297,10 @@ model Review {
   reviewer             User    @relation("Reviewer", fields: [reviewerId], references: [id])
   reviewerId           String
   reviewed             User    @relation("Reviewed", fields: [reviewedId], references: [id])
+
+  userSkillId      String
+  userSkill            UserSkill @relation(fields: [userSkillId], references: [id])
+
   reviewedId           String
   overallRating        Rating
   communicationRating  Rating?

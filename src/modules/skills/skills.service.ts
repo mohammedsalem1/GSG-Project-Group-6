@@ -65,16 +65,22 @@ export class SkillsService {
    ]);
   
   return {
-    data: usersSkill.map((item) => ({
-      skill: item.skill,
-      user: {
-        userName: item.user.userName,
-        image: item.user.image,
-        bio: item.user.bio,
-        receivedSwaps: item.user._count.receivedSwaps,
-        sentSwaps: item.user._count.sentSwaps,
-      },
-    })),
+    data: usersSkill.map((item) => {
+    const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+
+    return {
+        skill: item.skill,
+        user: {
+           userName: item.user.userName,
+           image: item.user.image,
+           bio: item.user.bio,
+           receivedSwaps: item.user._count.receivedSwaps,
+           sentSwaps: item.user._count.sentSwaps,
+           averageRating,
+           totalReviews,
+    },
+  };
+}),
 
     ...this.prismaService.formatPaginationResponse({
       page,
@@ -123,16 +129,23 @@ export class SkillsService {
   ]);
   
   return {
-    data: usersSkill.map((item) => ({
-      skill: item.skill,
-      user: {
-        userName: item.user.userName,
-        image: item.user.image,
-        bio: item.user.bio,
-        receivedSwaps: item.user._count.receivedSwaps,
-        sentSwaps: item.user._count.sentSwaps,
-      },
-    })),
+    data: usersSkill.map((item) => {
+    const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+
+    return {
+        skill: item.skill,
+        user: {
+           userName: item.user.userName,
+           image: item.user.image,
+           bio: item.user.bio,
+           receivedSwaps: item.user._count.receivedSwaps,
+           sentSwaps: item.user._count.sentSwaps,
+           averageRating,
+           totalReviews,
+    },
+  };
+}),
+
 
     ...this.prismaService.formatPaginationResponse({
       page,
@@ -142,48 +155,119 @@ export class SkillsService {
   };
    }
    // TODO getSessions and add in details
-   async getUserSkillDetails(skillId: string , userId:string): Promise<UserSkillDetailsDto> {
-
-      const userSkill = await this.prismaService.userSkill.findUnique({
-        where: { userId_skillId: { userId, skillId }},
+async getUserSkillDetails(skillId: string, userId: string) {
+  const userSkill = await this.prismaService.userSkill.findUnique({
+    where: { userId_skillId: { userId, skillId } },
+    select: {
+      id: true,
+      level: true,
+      user: {
         select: {
-          id: true,
-          level: true,
-          user: {
+          userName: true,
+          bio: true,
+          image: true,
+          reviewsReceived: {
             select: {
-              userName: true,
-              bio: true,
-              image: true,
-            }},
-          skill:{
-           select: {name:true , language:true , description:true , 
-             category: {select:{id:true ,name:true , icon:true , description:true}}
-          }},
-          _count: {
-            select:{reviews:true}
-          },
-        reviews: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: {
-             overallRating: true,
-             comment: true,
-             reviewer: {
-               select: {
-                 userName: true,
-                 image: true,
+              overallRating: true,
             },
           },
         },
       },
+      skill: {
+        select: {
+          name: true,
+          language: true,
+          description: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              description: true,
+            },
+          },
         },
-      });
-      if (!userSkill) {
-         throw new BadRequestException("the user don't have this skill") 
-      }
-      // TODO make rating
-      return this.mapUserSkillToResponse(userSkill)
-   };
+      },
+      _count: {
+        select: { reviews: true },
+      },
+      reviews: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          overallRating: true,
+          comment: true,
+          reviewer: {
+            select: {
+              userName: true,
+              image: true,
+            },
+          },
+        },
+      },
+      offeredInSwapRequests: {
+        select: {
+          session: {
+            select: {
+              id: true,
+              description: true,
+              duration: true,
+            },
+          },
+        },
+      },
+      requestedInSwapRequests: {
+        select: {
+          session: {
+            select: {
+              id: true,
+              description: true,
+              duration: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!userSkill) {
+    throw new BadRequestException("the user don't have this skill");
+  }
+
+  const sessions = [
+    ...userSkill.offeredInSwapRequests.map((s) => s.session).filter(Boolean),
+    ...userSkill.requestedInSwapRequests.map((s) => s.session).filter(Boolean),
+  ];
+
+  const countSessions = sessions.length;
+  const { averageRating, totalReviews } = this.calculateAvgRating(userSkill.user.reviewsReceived);
+
+  return {
+    provider: {
+      userName: userSkill.user.userName,
+      image: userSkill.user.image,
+      bio: userSkill.user.bio,
+      averageRating,
+      totalReviews,
+    },
+    skill: userSkill.skill,
+    level: userSkill.level,
+    reviews: {
+      count: userSkill._count.reviews,
+      LatestReviewDto: userSkill.reviews[0]
+        ? {
+            reviewerName: userSkill.reviews[0].reviewer.userName,
+            reviewerImage: userSkill.reviews[0].reviewer.image,
+            overallRating: userSkill.reviews[0].overallRating,
+            comment: userSkill.reviews[0].comment,
+          }
+        : null,
+    },
+    sessions,
+    countSessions,
+  };
+}
+
    async getPopularSkill():Promise<PopularSkillResponseDto[]>{
      const skills = await this.prismaService.skill.findMany({
        select: {id:true , name:true , _count:{select:{users:true}}},
@@ -236,7 +320,12 @@ export class SkillsService {
             select : {
               userName: true , 
               image: true , 
-              bio: true , 
+              bio: true ,
+              reviewsReceived: {
+                 select: {
+                  overallRating: true,
+                },
+               }, 
               _count: {
                 select: {
                   receivedSwaps: true,
@@ -247,7 +336,28 @@ export class SkillsService {
           }
    }}
     
-  
+  private ratingToNumber(rating: string): number {
+   const ratingMap: Record<string, number> = {
+    ONE: 1,
+    TWO: 2,
+    THREE: 3,
+    FOUR: 4,
+    FIVE: 5,
+  };
+  return ratingMap[rating] || 0;
+  }
+
+   private calculateAvgRating(reviews: { overallRating: string }[]) {
+  const ratings = reviews.map(r => this.ratingToNumber(r.overallRating));
+  const avg =
+    ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+
+  return {
+    averageRating: Math.round(avg * 10) / 10,
+    totalReviews: ratings.length,
+  };
+ }
+
 }
    
 

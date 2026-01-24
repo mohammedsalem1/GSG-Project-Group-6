@@ -183,6 +183,12 @@ export class ProviderWithSwapsDto extends ProviderDto {
 
   @ApiProperty()
   sentSwaps: number;
+   
+   @ApiProperty()
+   averageRating: number;
+   
+   @ApiProperty()
+   totalReviews: number
 }
 
 export class SearchUserSkillResponseDto {
@@ -199,6 +205,6 @@ export class PopularSkillResponseDto {
   skill:SkillDto
 
   @ApiProperty()
-    usersCount: number;
+  usersCount: number;
 }
 

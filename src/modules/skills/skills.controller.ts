@@ -1,11 +1,12 @@
 
-import { Controller, Get, HttpCode, HttpStatus, Param, Query } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SkillsService } from './skills.service';
 import { Type } from 'class-transformer';
 import { Public } from '../auth/decorators/public.decorator';
 import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsDto } from './dto/skills.dto';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 
 @ApiTags('skills')
@@ -15,8 +16,11 @@ export class SkillsController {
   constructor(
      private readonly skillService:SkillsService
   ) {}  
-
+  
+  
   @Get('categories')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @Public()
   @ApiOperation({ summary: 'Get all active categories' })
   @HttpCode(HttpStatus.OK)
@@ -27,8 +31,10 @@ export class SkillsController {
        return this.skillService.getAllCategories()    
    }
 
-  
+   
    @Get('categories/:categoryId/skills')
+   @UseGuards(JwtAuthGuard)
+   @ApiBearerAuth('JWT-auth')
    @ApiOperation({ summary: 'Get all skills for a specific category' })
    @ApiParam({name: 'categoryId',description: 'Category ID',required: true})
    @HttpCode(HttpStatus.OK)
@@ -41,7 +47,10 @@ export class SkillsController {
        return this.skillService.getSkillsByCategory(categoryId)
    }
    
+   @Public()
    @Get('search')
+   @UseGuards(JwtAuthGuard)
+   @ApiBearerAuth('JWT-auth')
    @ApiOperation({ summary: 'search skills'})
    @ApiQuery({name: 'name',description: 'name Skill or category',required: true})
    @HttpCode(HttpStatus.OK)
@@ -54,6 +63,8 @@ export class SkillsController {
 
    @Get('discover')
    @ApiOperation({ summary: 'filter skills'})
+   @UseGuards(JwtAuthGuard)
+   @ApiBearerAuth('JWT-auth')
    @HttpCode(HttpStatus.OK)
    @ApiOkResponse({ description: 'filter skills successfully' , type: SearchUserSkillResponseDto })
    @ApiBadRequestResponse({ description: 'no Skills' })
@@ -63,6 +74,8 @@ export class SkillsController {
    }
 
    @Get(':skillId/users/:userId/details')
+   @UseGuards(JwtAuthGuard)
+   @ApiBearerAuth('JWT-auth')
    @ApiOperation({ summary: 'Get skill details for specific user'})
    @ApiOkResponse({ type: UserSkillDetailsDto })
    @ApiBadRequestResponse({ description: 'The user does not have this skill' })
@@ -71,12 +84,14 @@ export class SkillsController {
    async getUserSkillDetails(
     @Param('skillId') skillId: string,
     @Param('userId')  userId : string
-   ): Promise<UserSkillDetailsDto>{
+   ){
       return this.skillService.getUserSkillDetails(skillId , userId)
    }
 
    
   @Get('popular')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get popular skill'})
   @ApiOkResponse({ type: PopularSkillResponseDto })
   async getPopularSkill():Promise<PopularSkillResponseDto[]> {

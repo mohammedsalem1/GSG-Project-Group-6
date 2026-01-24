@@ -1,12 +1,15 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { RegisterDto } from '../../auth/dto/auth.dto';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import {
+  IsDate,
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'mohammed' })
@@ -33,5 +36,9 @@ export class CreateUserDto {
   @IsString()
   otpCode: string;
 
-  otpSendAt: Date;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  otpSendAt?: Date;
 }

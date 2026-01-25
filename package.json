@@ -1,5 +1,8 @@
 {
   "name": "gsg-project-group-5",
+  "engines": {
+    "node": "20.x"
+   },
   "version": "0.0.1",
   "description": "",
   "author": "",

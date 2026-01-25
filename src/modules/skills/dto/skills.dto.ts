@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Availability, Prisma, SkillLevel } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsString, IsBoolean, IsUUID, IsOptional, IsArray, ValidateNested, IsNumber, IsEnum } from 'class-validator';
+import { IsString, IsBoolean, IsUUID, IsOptional, IsArray, ValidateNested, IsNumber, IsEnum, ArrayNotEmpty } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class CategoryResponseDto {
@@ -80,16 +80,25 @@ export class ProviderDto {
   @IsString()
   userName: string;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @IsOptional()
   @IsString()
   image: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   @IsOptional()
   @IsString()
   bio: string | null;
+
+  @ApiProperty()
+  @IsNumber()
+  averageRating: number;
+
+  @ApiProperty()
+  @IsNumber()
+  totalReviews: number;
 }
+
 
 export class LatestReviewDto {
   @ApiProperty()
@@ -125,7 +134,7 @@ export class UserSkillDetailsDto {
   @ApiProperty()
   @Type(() => ProviderDto)
   provider: ProviderDto;
-  
+
   @ApiProperty()
   @Type(() => SkillInfoDto)
   skill: SkillInfoDto;
@@ -137,6 +146,16 @@ export class UserSkillDetailsDto {
   @ApiProperty()
   @Type(() => ReviewsSummaryDto)
   reviews: ReviewsSummaryDto;
+
+  @ApiProperty({ type: () => SessionDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SessionDto)
+  sessions: (SessionDto | null)[];
+
+  @ApiProperty()
+  @IsNumber()
+  countSessions: number;
 }
 
 
@@ -177,19 +196,44 @@ export class SearchSkillDto extends PaginationDto  {
   name:string
 }
 
-export class ProviderWithSwapsDto extends ProviderDto {
+export class ProviderWithSwapsDto {
   @ApiProperty()
+  @IsString()
+  userName: string;
+
+  @ApiProperty({ nullable: true })
+  @IsOptional()
+  @IsString()
+  image: string | null;
+
+  @ApiProperty()
+  @IsString()
+  level: string;
+
+
+
+  @ApiProperty({ nullable: true })
+  @IsOptional()
+  @IsString()
+  bio: string | null;
+
+  @ApiProperty()
+  @IsNumber()
   receivedSwaps: number;
 
   @ApiProperty()
+  @IsNumber()
   sentSwaps: number;
-   
-   @ApiProperty()
-   averageRating: number;
-   
-   @ApiProperty()
-   totalReviews: number
+
+  @ApiProperty()
+  @IsNumber()
+  averageRating: number;
+
+  @ApiProperty()
+  @IsNumber()
+  totalReviews: number;
 }
+
 
 export class SearchUserSkillResponseDto {
   @ApiProperty({ type: SkillInfoDto })
@@ -207,4 +251,31 @@ export class PopularSkillResponseDto {
   @ApiProperty()
   usersCount: number;
 }
+export class SessionDto {
+  @ApiProperty()
+  @IsUUID()
+  id: string;
 
+  @ApiProperty()
+  @IsString()
+  title: string;
+
+  @ApiProperty()
+  @IsString()
+  description: string;
+
+  @ApiProperty()
+  @IsNumber()
+  duration: number;
+
+  @ApiProperty()
+  createdAt: Date;
+}
+
+
+export class UpdateUserCategoriesDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID("all", { each: true })
+  selectedCatIds: string[];
+}

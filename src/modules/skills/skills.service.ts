@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsDto } from './dto/skills.dto';
 import { Prisma } from '@prisma/client';
@@ -73,6 +73,7 @@ export class SkillsService {
         user: {
            userName: item.user.userName,
            image: item.user.image,
+           level:item.level,
            bio: item.user.bio,
            receivedSwaps: item.user._count.receivedSwaps,
            sentSwaps: item.user._count.sentSwaps,
@@ -91,7 +92,7 @@ export class SkillsService {
    }
    async filterSkills(query: FilterSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>> {
 
-  const whereClause: Prisma.UserSkillWhereInput = {
+      const whereClause: Prisma.UserSkillWhereInput = {
     user: {
       isActive: true,
       ...(query.availability && { availability: query.availability }),
@@ -137,6 +138,8 @@ export class SkillsService {
         user: {
            userName: item.user.userName,
            image: item.user.image,
+           level:item.level,
+           yearsOfExperience:item.yearsOfExperience,
            bio: item.user.bio,
            receivedSwaps: item.user._count.receivedSwaps,
            sentSwaps: item.user._count.sentSwaps,
@@ -155,10 +158,11 @@ export class SkillsService {
   };
    }
    // TODO getSessions and add in details
-async getUserSkillDetails(skillId: string, userId: string) {
-  const userSkill = await this.prismaService.userSkill.findUnique({
-    where: { userId_skillId: { userId, skillId } },
-    select: {
+   async getUserSkillDetails(skillId: string, userId: string):Promise<UserSkillDetailsDto> {
+  
+       const userSkill = await this.prismaService.userSkill.findUnique({
+       where: { userId_skillId: { userId, skillId } },
+        select: {
       id: true,
       level: true,
       user: {
@@ -210,8 +214,10 @@ async getUserSkillDetails(skillId: string, userId: string) {
           session: {
             select: {
               id: true,
+              title:true,
               description: true,
               duration: true,
+              createdAt:true
             },
           },
         },
@@ -221,8 +227,10 @@ async getUserSkillDetails(skillId: string, userId: string) {
           session: {
             select: {
               id: true,
+              title:true,
               description: true,
               duration: true,
+              createdAt:true
             },
           },
         },
@@ -231,7 +239,7 @@ async getUserSkillDetails(skillId: string, userId: string) {
   });
 
   if (!userSkill) {
-    throw new BadRequestException("the user don't have this skill");
+    throw new NotFoundException("the user don't have this skill");
   }
 
   const sessions = [
@@ -266,8 +274,7 @@ async getUserSkillDetails(skillId: string, userId: string) {
     sessions,
     countSessions,
   };
-}
-
+   }
    async getPopularSkill():Promise<PopularSkillResponseDto[]>{
      const skills = await this.prismaService.skill.findMany({
        select: {id:true , name:true , _count:{select:{users:true}}},
@@ -288,32 +295,69 @@ async getUserSkillDetails(skillId: string, userId: string) {
      }))
    }
 
+   async updateSelectedCategories(userId: string, selectedCatIds: string[]) {
+        const idsString = selectedCatIds.join(',');
 
-   private mapUserSkillToResponse(userSkill: any) {
+          return this.prismaService.user.update({
+            where: { id: userId },
+            data: {
+              selectedCatIds: idsString
+           }
+    });
+    }
+  
+  async getRecommendedUserSkills(userId: string) {
+     const ids = await this.getUserCategories(userId);
+     if (!ids.length) {
+           return [];
+       }
 
+      const usersSkill = await this.prismaService.userSkill.findMany({
+        where: { userId: {  not: userId }, skill: { categoryId: { in: ids}}},
+        select: this.getUserSkillSelect()
+        })
       return {
-         provider: {
-           userName: userSkill.user.userName,
-           image: userSkill.user.image,
-           bio: userSkill.user.bio
-         },
-          skill: userSkill.skill,
-          level: userSkill.level,
-          reviews: {
-               count: userSkill._count.reviews,
-               LatestReviewDto: userSkill.reviews[0]
-        ? {
-            reviewerName: userSkill.reviews[0].reviewer.userName,
-            reviewerImage: userSkill.reviews[0].reviewer.image,
-            overallRating: userSkill.reviews[0].overallRating,
-            comment: userSkill.reviews[0].comment,
-          }
-        : null,
+    data: usersSkill.map((item) => {
+    const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+
+    return {
+        skill: item.skill,
+        user: {
+           userName: item.user.userName,
+           image: item.user.image,
+           level:item.level,
+           yearsOfExperience:item.yearsOfExperience,
+           bio: item.user.bio,
+           receivedSwaps: item.user._count.receivedSwaps,
+           sentSwaps: item.user._count.sentSwaps,
+           averageRating,
+           totalReviews,
     },
-    };
-   }
+  };
+}),
+ }}
+
+
+  async getUserCategories(userId: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: { selectedCatIds: true }
+    });
+    if (!user) {
+       throw new UnauthorizedException('the user in not authorized')       
+    }
+    const ids = user.selectedCatIds
+      ? user.selectedCatIds.split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+
+    return ids;
+  }
+  
    private getUserSkillSelect() {
      return {
+          level:true,
+          yearsOfExperience: true,
+          isOffering: true,
           skill: {select: {name:true , language:true , description:true , 
              category: {select:{id:true ,name:true , icon:true , description:true}}}} ,
           user : {
@@ -321,6 +365,7 @@ async getUserSkillDetails(skillId: string, userId: string) {
               userName: true , 
               image: true , 
               bio: true ,
+              availability: true,
               reviewsReceived: {
                  select: {
                   overallRating: true,
@@ -348,19 +393,17 @@ async getUserSkillDetails(skillId: string, userId: string) {
   }
 
    private calculateAvgRating(reviews: { overallRating: string }[]) {
-  const ratings = reviews.map(r => this.ratingToNumber(r.overallRating));
-  const avg =
-    ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+      const ratings = reviews.map(r => this.ratingToNumber(r.overallRating));
+      const avg =
+          ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
 
-  return {
-    averageRating: Math.round(avg * 10) / 10,
-    totalReviews: ratings.length,
-  };
+       return {
+           averageRating: Math.round(avg * 10) / 10,
+           totalReviews: ratings.length,
+      };
  }
-
+   
 }
-   
 
-  //  async getRecommendedUserSkills() {}
-   
+  
 

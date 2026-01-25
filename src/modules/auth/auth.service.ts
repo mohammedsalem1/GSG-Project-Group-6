@@ -59,6 +59,7 @@ export class AuthService {
 
     const hashedPassword = await hashPassword(registerDto.password);
     const otp = generateOtp();
+    console.log(otp)
     const hashedOtp = await hashOTP(otp);
 
     const createdUser = await this.userService.create({

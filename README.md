@@ -19,3 +19,5 @@ The platform encourages knowledge sharing, collaboration, and community growth.
 - **Mohammed Salem**
 
 ---
+
+[View Database Diagram](https://drawsql.app/teams/hero-team-1/diagrams/skill-swap-platform)

@@ -296,16 +296,7 @@ export class SkillsService {
      }))
    }
 
-   async updateSelectedCategories(userId: string, selectedCatIds: string[]) {
-        const idsString = selectedCatIds.join(',');
-
-          return this.prismaService.user.update({
-            where: { id: userId },
-            data: {
-              selectedCatIds: idsString
-           }
-    });
-    }
+   
   
   async getRecommendedUserSkills(userId: string) {
      const ids = await this.getUserCategories(userId);

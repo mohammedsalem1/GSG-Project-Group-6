@@ -279,6 +279,12 @@ export class SessionDto {
 
 
 export class UpdateUserCategoriesDto {
+  @ApiProperty({
+  isArray: true,
+  type: String,
+  format: 'uuid'
+})
+
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID("all", { each: true })

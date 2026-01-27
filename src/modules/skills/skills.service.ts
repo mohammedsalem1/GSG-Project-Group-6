@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
-import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsDto } from './dto/skills.dto';
+import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
 import { Prisma } from '@prisma/client';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 
@@ -158,7 +158,7 @@ export class SkillsService {
   };
    }
    // TODO getSessions and add in details
-   async getUserSkillDetails(skillId: string, userId: string):Promise<UserSkillDetailsDto> {
+   async getUserSkillDetails(skillId: string, userId: string):Promise<UserSkillDetailsResponseDto> {
   
        const userSkill = await this.prismaService.userSkill.findUnique({
        where: { userId_skillId: { userId, skillId } },
@@ -260,6 +260,7 @@ export class SkillsService {
     },
     skill: userSkill.skill,
     level: userSkill.level,
+    userSkillId:userSkill.id,
     reviews: {
       count: userSkill._count.reviews,
       LatestReviewDto: userSkill.reviews[0]

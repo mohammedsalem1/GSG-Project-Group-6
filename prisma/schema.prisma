@@ -315,6 +315,7 @@ model Review {
   updatedAt DateTime @updatedAt
 
   @@map("reviews")
+
 }
 
 model Badge {

@@ -8,12 +8,13 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { SkillsModule } from './modules/skills/skills.module';
 import jwtConfig from './config/jwt.config';
+import imagekitConfig from './config/imagekit.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, jwtConfig],
+      load: [appConfig, jwtConfig, imagekitConfig],
       envFilePath: '.env',
     }),
     DatabaseModule,

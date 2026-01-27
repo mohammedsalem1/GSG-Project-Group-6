@@ -130,7 +130,7 @@ export class ReviewsSummaryDto {
   LatestReviewDto: LatestReviewDto | null;
 }
 
-export class UserSkillDetailsDto {
+export class UserSkillDetailsResponseDto {
   @ApiProperty()
   @Type(() => ProviderDto)
   provider: ProviderDto;
@@ -142,6 +142,11 @@ export class UserSkillDetailsDto {
   @ApiProperty()
   @IsString()
   level: string;
+
+
+  @ApiProperty()
+  @IsString()
+  userSkillId:string
 
   @ApiProperty()
   @Type(() => ReviewsSummaryDto)
@@ -274,6 +279,12 @@ export class SessionDto {
 
 
 export class UpdateUserCategoriesDto {
+  @ApiProperty({
+  isArray: true,
+  type: String,
+  format: 'uuid'
+})
+
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID("all", { each: true })

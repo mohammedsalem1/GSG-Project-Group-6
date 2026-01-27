@@ -37,6 +37,7 @@ import type { RequestUser } from 'src/common/types/user.types';
 import { Public } from '../auth/decorators/public.decorator';
 import { AddUserSkillDto, SearchUsersDto, UpdateUserDto } from './dto';
 import { ImageKitService } from './services/imagekit.service';
+import { UpdateUserCategoriesDto } from '../skills/dto/skills.dto';
 
 @ApiTags('users')
 @Controller('user')
@@ -46,7 +47,28 @@ export class UserController {
     private readonly imagekitService: ImageKitService,
   ) {}
 
-
+  @Patch('me/categories')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update selected categories for current user' })
+  @ApiOkResponse({description: 'Selected categories updated successfully' ,   schema: {
+      example: {
+        success: true,
+        data: {
+          userId:"dsadssadsassddsdas" , 
+          userName:"mohammed",
+          selectedCatIds:"nku"
+        }}
+      }} )
+  @ApiOperation({ summary: 'update Selected Category user'})
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBadRequestResponse({ description: 'Some category IDs were not found' })
+  async updateCategories(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdateUserCategoriesDto
+  ) {
+    return this.userService.updateUserSelectedCategories(user.id, dto.selectedCatIds);
+  }
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

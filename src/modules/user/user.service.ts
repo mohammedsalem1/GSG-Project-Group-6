@@ -63,6 +63,40 @@ export class UserService {
       },
     });
   }
+  async updateUserSelectedCategories(
+  userId: string,
+  selectedCatIds: string[],
+) {
+  const uniqueIds = [...new Set(selectedCatIds)];
+  const categories = await this.prismaService.category.findMany({
+    where: {
+      id: { in: uniqueIds },
+    },
+    select: { id: true },
+  });
+
+  if (categories.length !== uniqueIds.length) {
+    const foundIds = new Set(categories.map(c => c.id));
+    const notFoundIds = uniqueIds.filter(id => !foundIds.has(id));
+
+    throw new BadRequestException({
+      message: 'Some category IDs were not found',
+      notFoundIds,
+    });
+  }
+
+  return this.prismaService.user.update({
+    where: { id: userId },
+    data: {
+      selectedCatIds: uniqueIds.join(','),
+    },
+    select: {
+      id:true , 
+      userName:true,
+      selectedCatIds:true
+    }
+  });
+ }
 
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({

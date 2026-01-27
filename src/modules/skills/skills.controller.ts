@@ -4,7 +4,7 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, A
 import { SkillsService } from './skills.service';
 import { Type } from 'class-transformer';
 import { Public } from '../auth/decorators/public.decorator';
-import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UpdateUserCategoriesDto, UserSkillDetailsDto } from './dto/skills.dto';
+import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UpdateUserCategoriesDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -99,6 +99,7 @@ export class SkillsController {
    @ApiBearerAuth('JWT-auth')
    @ApiOperation({ summary: 'Get skill details for specific user'})
    @ApiNotFoundResponse({ description: 'User skill not found' })
+   @ApiOkResponse({description:"get details UserSkill successfully", type:UserSkillDetailsResponseDto})
    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
    @ApiParam( {name: 'skillId',description: 'Skill ID',required: true})
    @ApiParam( {name: 'userId',description: 'User  ID',required: true})
@@ -106,7 +107,7 @@ export class SkillsController {
    async getUserSkillDetails(
     @Param('skillId') skillId: string,
     @Param('userId')  userId : string
-   ):Promise<UserSkillDetailsDto>{
+   ):Promise<UserSkillDetailsResponseDto>{
       return this.skillService.getUserSkillDetails(skillId , userId)
    }
 
@@ -123,23 +124,14 @@ export class SkillsController {
   }
 
     
-  @Patch('users/selected-categories')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update selected categories for current user' })
-  @ApiOkResponse({description: 'Selected categories updated successfully'})
-  @ApiOperation({ summary: 'update Selected Category user'})
-  async updateCategories(
-    @CurrentUser() user: RequestUser,
-    @Body() dto: UpdateUserCategoriesDto
-  ) {
-    return this.skillService.updateSelectedCategories(user.id, dto.selectedCatIds);
-  }
+
 
   @Get('recommended-user')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get recommanded user skill'})
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+
   @ApiOkResponse({   schema: {
       example: {
         success: true,

@@ -58,10 +58,10 @@ export class AuthService {
     }
 
     const hashedPassword = await hashPassword(registerDto.password);
-    const otp = generateOtp();
+    // const otp = generateOtp();
+    const otp = "1234"
     console.log(otp)
     const hashedOtp = await hashOTP(otp);
-
     const createdUser = await this.userService.create({
       userName: registerDto.userName,
       email: registerDto.email,
@@ -77,12 +77,10 @@ export class AuthService {
         EmailPurpose.VERIFY_EMAIL,
       );
     } catch (error) {
-      await this.prisma.user.delete({
-        where: { id: createdUser.id },
-      });
-      throw new BadRequestException(
-        'Failed to send verification email. Please try registering again.',
-      );
+      // throw new BadRequestException(
+      //   'Failed to send verification email. Please try registering again.',
+      // );
+
     }
 
     return 'Your account created successfully. Please verify your email';

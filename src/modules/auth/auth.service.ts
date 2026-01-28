@@ -80,7 +80,8 @@ export class AuthService {
       // throw new BadRequestException(
       //   'Failed to send verification email. Please try registering again.',
       // );
-
+         return 'Your account created successfully. Please verify your email <>';
+  
     }
 
     return 'Your account created successfully. Please verify your email';

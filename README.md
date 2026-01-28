@@ -21,3 +21,11 @@ The platform encourages knowledge sharing, collaboration, and community growth.
 ---
 
 [View Database Diagram](https://drawsql.app/teams/hero-team-1/diagrams/skill-swap-platform)
+
+
+## 📄 API Documentation (Swagger)
+
+The backend APIs are fully documented using **Swagger**.
+
+🔗 **Swagger UI (Production)**  
+https://skill-swap-platform-api.onrender.com/api/docs

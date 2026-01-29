@@ -165,10 +165,6 @@ export class UserSkillDetailsResponseDto {
 
 
 export class FilterSkillDto extends PaginationDto {
-  @ApiPropertyOptional({ example: 'web' })
-  @IsOptional()
-  @IsString()
-  nameCategory?: string;
 
   @ApiPropertyOptional({ example: 'WEEKENDS', enum: Availability })
   @IsOptional()

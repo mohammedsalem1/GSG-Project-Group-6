@@ -25,7 +25,7 @@ export class SkillsService {
    async getSkillsByCategory(categoryId:string): Promise<CategorySkillsDto> {
       const category = await this.prismaService.category.findUnique({
         where: {id:categoryId} , 
-        select :{id:true , name:true, isActive:true ,  skills: {where:{isActive:true},select:{id:true , name: true}}}
+        select :{id:true , name:true, isActive:true ,  skills: {where:{isActive:true},select:{id:true , name: true , isActive:true}}}
       })
       
       if (!category || !category.isActive) {
@@ -38,18 +38,20 @@ export class SkillsService {
    }
    async searchSkills(query: SearchSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>>  {
   
-      const searchName = query.name.toLowerCase()
+      const searchName = query.name
       const pagination = this.prismaService.handleQueryPagination({
              page: query.page,
             limit: query.limit,
      });
-      const whereClause: Prisma.UserSkillWhereInput = { user: { isActive: true },skill: { isActive: true,
-        OR: [
-        { name: { contains: searchName } },
-        { category: { name: { contains: searchName } } },
-    ],
-  },
-};
+      const whereClause: Prisma.UserSkillWhereInput = {
+           user: { isActive: true },
+           skill: { isActive: true },
+        };
+       if (searchName) {
+         whereClause.OR = [
+            {  skill: { name: { contains: searchName, mode: 'insensitive'}}},
+            {  skill: { category: { name: { contains: searchName, mode: 'insensitive'}}}},];
+       }
 
       const { page, ...removePage } = pagination;
       const [usersSkill, count] = await Promise.all([
@@ -64,21 +66,23 @@ export class SkillsService {
      }),
    ]);
   
-  return {
-    data: usersSkill.map((item) => {
-    const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+      return {
+         data: usersSkill.map((item) => {
+         const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
 
-    return {
-        skill: item.skill,
-        user: {
-           userName: item.user.userName,
-           image: item.user.image,
-           level:item.level,
-           bio: item.user.bio,
-           receivedSwaps: item.user._count.receivedSwaps,
-           sentSwaps: item.user._count.sentSwaps,
-           averageRating,
-           totalReviews,
+         return {
+           skill: item.skill,
+           user: {
+             userName: item.user.userName,
+             image: item.user.image,
+             level:item.level,
+             yearsOfExperience: item.yearsOfExperience,
+             isOffering: item.isOffering,
+             bio: item.user.bio,
+             receivedSwaps: item.user._count.receivedSwaps,
+             sentSwaps: item.user._count.sentSwaps,
+             averageRating,
+             totalReviews,
     },
   };
 }),
@@ -93,41 +97,31 @@ export class SkillsService {
    async filterSkills(query: FilterSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>> {
 
       const whereClause: Prisma.UserSkillWhereInput = {
-    user: {
-      isActive: true,
-      ...(query.availability && { availability: query.availability }),
-    },
-    ...(query.level && { level: query.level }),
-    ...(query.isOffering !== undefined && { isOffering: query.isOffering }),
-    ...(query.nameCategory && {
-      skill: {
-        category: {
-          name: {
-            contains: query.nameCategory.toLowerCase(),
-          },
-        },
-      },
+         user: {  isActive: true,  ...(query.availability && { availability: query.availability })},
+         ...(query.level && { level: query.level }),
+         ...(query.isOffering !== undefined && { isOffering: query.isOffering }),
+
+         skill: { isActive: true, ...(query.language && { language: { contains: query.language,mode: 'insensitive'},
     }),
-  };
+  },
+};
 
-  const pagination = this.prismaService.handleQueryPagination({
-    page: query.page,
-    limit: query.limit,
-  });
 
-  const { page, ...removePage } = pagination;
+       const pagination = this.prismaService.handleQueryPagination({
+          page: query.page,
+          limit: query.limit,
+        });
 
-  const [usersSkill, count] = await Promise.all([
-    this.prismaService.userSkill.findMany({
-      ...removePage,
-      where: whereClause,
-      select: this.getUserSkillSelect(),
-    }),
+        const { page, ...removePage } = pagination;
 
-    this.prismaService.userSkill.count({
-      where: whereClause,
-    }),
-  ]);
+         const [usersSkill, count] = await Promise.all([
+             this.prismaService.userSkill.findMany({
+             ...removePage,
+              where: whereClause,
+               select: this.getUserSkillSelect(),
+          }),
+
+         this.prismaService.userSkill.count({where: whereClause}) ]);
   
   return {
     data: usersSkill.map((item) => {

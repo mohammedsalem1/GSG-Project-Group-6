@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { SkillsModule } from './modules/skills/skills.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 
@@ -21,6 +22,7 @@ import imagekitConfig from './config/imagekit.config';
     AuthModule,
     UserModule,
     SkillsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -104,7 +104,7 @@ export class SkillsService {
          skill: { isActive: true, ...(query.language && { language: { contains: query.language,mode: 'insensitive'},
     }),
   },
-};
+      };
 
 
        const pagination = this.prismaService.handleQueryPagination({
@@ -123,153 +123,154 @@ export class SkillsService {
 
          this.prismaService.userSkill.count({where: whereClause}) ]);
   
-  return {
-    data: usersSkill.map((item) => {
-    const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+          return {
+            data: usersSkill.map((item) => {
+            const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
 
-    return {
-        skill: item.skill,
-        user: {
-           userName: item.user.userName,
-           image: item.user.image,
-           level:item.level,
-           yearsOfExperience:item.yearsOfExperience,
-           bio: item.user.bio,
-           receivedSwaps: item.user._count.receivedSwaps,
-           sentSwaps: item.user._count.sentSwaps,
-           averageRating,
-           totalReviews,
-    },
-  };
-}),
+            return {
+                skill: item.skill,
+                user: {
+                  userName: item.user.userName,
+                  image: item.user.image,
+                  level:item.level,
+                  yearsOfExperience:item.yearsOfExperience,
+                  bio: item.user.bio,
+                  receivedSwaps: item.user._count.receivedSwaps,
+                  sentSwaps: item.user._count.sentSwaps,
+                  averageRating,
+                  totalReviews,
+            },
+          };
+        }),
 
 
-    ...this.prismaService.formatPaginationResponse({
-      page,
-      count,
-      limit: pagination.take,
-    }),
-  };
+            ...this.prismaService.formatPaginationResponse({
+              page,
+              count,
+              limit: pagination.take,
+            }),
+          };
    }
    // TODO getSessions and add in details
    async getUserSkillDetails(skillId: string, userId: string):Promise<UserSkillDetailsResponseDto> {
   
-       const userSkill = await this.prismaService.userSkill.findUnique({
-       where: { userId_skillId: { userId, skillId } },
-        select: {
-      id: true,
-      level: true,
-      user: {
-        select: {
-          userName: true,
-          bio: true,
-          image: true,
-          reviewsReceived: {
-            select: {
-              overallRating: true,
-            },
-          },
-        },
-      },
-      skill: {
-        select: {
-          name: true,
-          language: true,
-          description: true,
-          category: {
+      const userSkill = await this.prismaService.userSkill.findUnique({
+          where: { userId_skillId: { userId, skillId } },
             select: {
               id: true,
-              name: true,
-              icon: true,
-              description: true,
+              level: true,
+              user: {
+                select: {
+                  userName: true,
+                  bio: true,
+                  image: true,
+                  reviewsReceived: {
+                    select: {
+                      overallRating: true,
+                    },
+                  },
+                },
+              },
+              skill: {
+                select: {
+                  name: true,
+                  language: true,
+                  description: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                      icon: true,
+                      description: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: { reviews: true },
+              },
+              reviews: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: {
+                  overallRating: true,
+                  comment: true,
+                  reviewer: {
+                    select: {
+                      userName: true,
+                      image: true,
+                    },
+                  },
+                },
+              },
+              offeredInSwapRequests: {
+                select: {
+                  session: {
+                    select: {
+                      id: true,
+                      title:true,
+                      description: true,
+                      duration: true,
+                      createdAt:true
+                    },
+                  },
+                },
+              },
+              requestedInSwapRequests: {
+                select: {
+                  session: {
+                    select: {
+                      id: true,
+                      title:true,
+                      description: true,
+                      duration: true,
+                      createdAt:true
+                    },
+                  },
+                },
+              },
             },
-          },
-        },
-      },
-      _count: {
-        select: { reviews: true },
-      },
-      reviews: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: {
-          overallRating: true,
-          comment: true,
-          reviewer: {
-            select: {
-              userName: true,
-              image: true,
-            },
-          },
-        },
-      },
-      offeredInSwapRequests: {
-        select: {
-          session: {
-            select: {
-              id: true,
-              title:true,
-              description: true,
-              duration: true,
-              createdAt:true
-            },
-          },
-        },
-      },
-      requestedInSwapRequests: {
-        select: {
-          session: {
-            select: {
-              id: true,
-              title:true,
-              description: true,
-              duration: true,
-              createdAt:true
-            },
-          },
-        },
-      },
-    },
-  });
+          });
 
-  if (!userSkill) {
-    throw new NotFoundException("the user don't have this skill");
-  }
+      if (!userSkill) {
+          throw new NotFoundException("the user don't have this skill");
+       }
 
-  const sessions = [
-    ...userSkill.offeredInSwapRequests.map((s) => s.session).filter(Boolean),
-    ...userSkill.requestedInSwapRequests.map((s) => s.session).filter(Boolean),
-  ];
+      const sessions = [
+        ...userSkill.offeredInSwapRequests.map((s) => s.session).filter(Boolean),
+        ...userSkill.requestedInSwapRequests.map((s) => s.session).filter(Boolean),
+      ];
 
-  const countSessions = sessions.length;
-  const { averageRating, totalReviews } = this.calculateAvgRating(userSkill.user.reviewsReceived);
+      const countSessions = sessions.length;
+      const { averageRating, totalReviews } = this.calculateAvgRating(userSkill.user.reviewsReceived);
 
-  return {
-    provider: {
-      userName: userSkill.user.userName,
-      image: userSkill.user.image,
-      bio: userSkill.user.bio,
-      averageRating,
-      totalReviews,
-    },
-    skill: userSkill.skill,
-    level: userSkill.level,
-    userSkillId:userSkill.id,
-    reviews: {
-      count: userSkill._count.reviews,
-      LatestReviewDto: userSkill.reviews[0]
-        ? {
-            reviewerName: userSkill.reviews[0].reviewer.userName,
-            reviewerImage: userSkill.reviews[0].reviewer.image,
-            overallRating: userSkill.reviews[0].overallRating,
-            comment: userSkill.reviews[0].comment,
-          }
-        : null,
-    },
-    sessions,
-    countSessions,
-  };
+      return {
+        provider: {
+          userName: userSkill.user.userName,
+          image: userSkill.user.image,
+          bio: userSkill.user.bio,
+          averageRating,
+          totalReviews,
+        },
+        skill: userSkill.skill,
+        level: userSkill.level,
+        userSkillId:userSkill.id,
+        reviews: {
+          count: userSkill._count.reviews,
+          LatestReviewDto: userSkill.reviews[0]
+            ? {
+                reviewerName: userSkill.reviews[0].reviewer.userName,
+                reviewerImage: userSkill.reviews[0].reviewer.image,
+                overallRating: userSkill.reviews[0].overallRating,
+                comment: userSkill.reviews[0].comment,
+              }
+            : null,
+        },
+        sessions,
+        countSessions,
+      };
    }
+
    async getPopularSkill():Promise<PopularSkillResponseDto[]>{
      const skills = await this.prismaService.skill.findMany({
        select: {id:true , name:true , _count:{select:{users:true}}},

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -299,11 +299,11 @@ model Review {
   reviewer             User    @relation("Reviewer", fields: [reviewerId], references: [id])
   reviewerId           String
   reviewed             User    @relation("Reviewed", fields: [reviewedId], references: [id])
+  reviewedId           String
 
-  userSkillId      String
+  userSkillId          String
   userSkill            UserSkill @relation(fields: [userSkillId], references: [id])
 
-  reviewedId           String
   overallRating        Rating
   communicationRating  Rating?
   punctualityRating    Rating
@@ -315,6 +315,7 @@ model Review {
   updatedAt DateTime @updatedAt
 
   @@map("reviews")
+
 }
 
 model Badge {

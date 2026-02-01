@@ -165,10 +165,6 @@ export class UserSkillDetailsResponseDto {
 
 
 export class FilterSkillDto extends PaginationDto {
-  @ApiPropertyOptional({ example: 'web' })
-  @IsOptional()
-  @IsString()
-  nameCategory?: string;
 
   @ApiPropertyOptional({ example: 'WEEKENDS', enum: Availability })
   @IsOptional()
@@ -279,6 +275,12 @@ export class SessionDto {
 
 
 export class UpdateUserCategoriesDto {
+  @ApiProperty({
+  isArray: true,
+  type: String,
+  format: 'uuid'
+})
+
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID("all", { each: true })

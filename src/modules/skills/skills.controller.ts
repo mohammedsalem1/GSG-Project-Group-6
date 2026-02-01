@@ -124,23 +124,14 @@ export class SkillsController {
   }
 
     
-  @Patch('users/selected-categories')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update selected categories for current user' })
-  @ApiOkResponse({description: 'Selected categories updated successfully'})
-  @ApiOperation({ summary: 'update Selected Category user'})
-  async updateCategories(
-    @CurrentUser() user: RequestUser,
-    @Body() dto: UpdateUserCategoriesDto
-  ) {
-    return this.skillService.updateSelectedCategories(user.id, dto.selectedCatIds);
-  }
+
 
   @Get('recommended-user')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get recommanded user skill'})
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+
   @ApiOkResponse({   schema: {
       example: {
         success: true,

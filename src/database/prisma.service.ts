@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
-export class PrismaService
+export class
+PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
@@ -15,6 +16,8 @@ export class PrismaService
   async onModuleDestroy() {
     await this.$disconnect();
   }
+
+  
   handleQueryPagination(query: PaginationDto) {
     const page = Number(query.page ?? 1);
     const limit = Number(query.limit ?? 10);

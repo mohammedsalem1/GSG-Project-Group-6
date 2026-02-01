@@ -417,20 +417,20 @@ export class UserService {
     // Text search in username, bio, location
     if (query) {
       where.OR = [
-        { userName: { contains: query, mode: 'insensitive' } },
-        { bio: { contains: query, mode: 'insensitive' } },
-        { location: { contains: query, mode: 'insensitive' } },
+        { userName: { contains: query } },
+        { bio: { contains: query } },
+        { location: { contains: query } },
       ];
     }
 
     // Filter by country
     if (country) {
-      where.country = { contains: country, mode: 'insensitive' };
+      where.country = { contains: country };
     }
 
     // Filter by location
     if (location) {
-      where.location = { contains: location, mode: 'insensitive' };
+      where.location = { contains: location };
     }
 
     // Filter by availability
@@ -445,7 +445,7 @@ export class UserService {
           isOffering: true, // Only search offered skills
           ...(skillName && {
             skill: {
-              name: { contains: skillName, mode: 'insensitive' },
+              name: { contains: skillName },
             },
           }),
           ...(skillLevel && { level: skillLevel }),

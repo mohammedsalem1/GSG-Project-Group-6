@@ -265,7 +265,7 @@ model Session {
   swapRequest     SwapRequest      @relation(fields: [swapRequestId], references: [id])
   swapRequestId   String           @unique
   conversation    Conversation     @relation(fields: [conversationId], references: [id])
-  conversationId String           @unique
+  conversationId String            @unique
   host            User             @relation("Host", fields: [hostId], references: [id])
   hostId          String
   attendee        User             @relation("Attendee", fields: [attendeeId], references: [id])

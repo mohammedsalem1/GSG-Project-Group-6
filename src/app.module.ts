@@ -12,6 +12,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 import { AdminModule } from './modules/admin/admin.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -20,13 +21,13 @@ import imagekitConfig from './config/imagekit.config';
       load: [appConfig, jwtConfig, imagekitConfig],
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
     UserModule,
     SkillsModule,
     ReviewsModule,
     FeedbackModule,
-    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

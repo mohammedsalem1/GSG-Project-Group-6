@@ -117,7 +117,7 @@ export class LatestReviewDto {
   
   @IsOptional() 
   @ApiProperty()
-  overallRating: string
+  overallRating: string | null
 
 }
 

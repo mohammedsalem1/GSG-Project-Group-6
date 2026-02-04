@@ -6,13 +6,16 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBadRequestResponse,
+  ApiBody,
   ApiCreatedResponse,
   ApiInternalServerErrorResponse,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -21,6 +24,7 @@ import {
 import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
 import {
   ForgotPasswordDto,
+  OtpType,
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
@@ -47,6 +51,15 @@ export class AuthController {
   async register(@Body() registerDto: RegisterDto): Promise<string> {
     return await this.authService.register(registerDto);
   }
+  
+  @Public()
+  @Get('otp-types')
+  @ApiOperation({ summary: 'Get allowed OTP types' })
+
+  getOtpTypes() {
+     return Object.values(OtpType);
+  }
+
 
   @Post('verify-otp')
   @Public()
@@ -55,8 +68,9 @@ export class AuthController {
   @ApiOkResponse({ description: 'User verified successfully' })
   @ApiBadRequestResponse({ description: 'Invalid OTP code or OTP expired' })
   @ApiInternalServerErrorResponse({ description: 'Internal server error' })
-  async verifyOtp(@Body() verifyOtp: VerifyOtpDto): Promise<string> {
-    return this.authService.verifyOTP(verifyOtp.email, verifyOtp.otpCode);
+
+  async verifyOtp(@Body() verifyOtp: VerifyOtpDto) {
+    return this.authService.verifyOTP(verifyOtp);
   }
 
   @Post('login')
@@ -78,22 +92,43 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @ApiOperation({ summary: 'Forgot Password' })
-  @Public()
-  @ApiOkResponse({
-    description:
-      'Check your email for a password reset link if this address is associated with an account.',
-  })
   @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset code' })
+  @ApiOkResponse({
+    description: 'A password reset code has been sent to the email if it exists',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Reset code sent successfully' },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'User not verified' })
+  @ApiNotFoundResponse({ description: 'User not found' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     const { email } = forgotPasswordDto;
     console.log(email);
     return this.authService.forgotPassword(email);
   }
 
-  @ApiOperation({ summary: 'Reset Password' })
+  @Post('reset-password')
   @Public()
-  @ApiOkResponse({ description: 'Reset Paswword successfully' })
+  @UsePipes(ConfirmPasswordPipe)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset user password using reset code' })
+  @ApiOkResponse({
+    description: 'Password has been reset successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Password reset successfully' },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input data or weak password' })
+  @ApiNotFoundResponse({ description: 'User not found' })
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);

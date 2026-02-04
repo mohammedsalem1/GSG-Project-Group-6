@@ -6,10 +6,12 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBadRequestResponse,
+  ApiBody,
   ApiCreatedResponse,
   ApiInternalServerErrorResponse,
   ApiNoContentResponse,
@@ -21,6 +23,7 @@ import {
 import { ConfirmPasswordPipe } from './pipes/confirm-password-pipe.pipe';
 import {
   ForgotPasswordDto,
+  OtpType,
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
@@ -47,7 +50,12 @@ export class AuthController {
   async register(@Body() registerDto: RegisterDto): Promise<string> {
     return await this.authService.register(registerDto);
   }
-
+  
+  @Public()
+  @Get('otp-types')
+   getOtpTypes() {
+       return Object.values(OtpType);
+   }
   @Post('verify-otp')
   @Public()
   @HttpCode(HttpStatus.OK)
@@ -55,8 +63,9 @@ export class AuthController {
   @ApiOkResponse({ description: 'User verified successfully' })
   @ApiBadRequestResponse({ description: 'Invalid OTP code or OTP expired' })
   @ApiInternalServerErrorResponse({ description: 'Internal server error' })
-  async verifyOtp(@Body() verifyOtp: VerifyOtpDto): Promise<string> {
-    return this.authService.verifyOTP(verifyOtp.email, verifyOtp.otpCode);
+
+  async verifyOtp(@Body() verifyOtp: VerifyOtpDto) {
+    return this.authService.verifyOTP(verifyOtp);
   }
 
   @Post('login')
@@ -93,6 +102,7 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Reset Password' })
   @Public()
+  @UsePipes(ConfirmPasswordPipe)
   @ApiOkResponse({ description: 'Reset Paswword successfully' })
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {

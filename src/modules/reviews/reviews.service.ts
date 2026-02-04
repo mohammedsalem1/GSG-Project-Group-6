@@ -22,9 +22,9 @@ export class ReviewsService {
           throw new BadRequestException('the swapRequest is not found')
        }
 
-      //  if (!swapRequest.session  || swapRequest.session!.status !== 'COMPLETED' ) {
-      //     throw new BadRequestException("you don't review because the session is not completed")
-      //  }
+       if (!swapRequest.session  || swapRequest.session!.status !== 'COMPLETED' ) {
+          throw new BadRequestException("you don't review because the session is not completed")
+       }
     
        if (swapRequest.requesterId !== reviewerId && swapRequest.receiverId !== reviewerId) {
             throw new ForbiddenException('You are not part of this swap');

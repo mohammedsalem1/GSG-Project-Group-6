@@ -116,7 +116,7 @@ export class LatestReviewDto {
   comment: string | null;
    
   @ApiProperty()
-  overallRating: string
+  overallRating: string | null
 
 }
 

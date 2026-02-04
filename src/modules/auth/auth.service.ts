@@ -70,19 +70,19 @@ export class AuthService {
       otpSendAt: new Date(),
     });
 
-    try {
-      await this.mailService.sendOtpEmail(
-        createdUser,
-        otp,
-        EmailPurpose.VERIFY_EMAIL,
-      );
-    } catch (error) {
-      // throw new BadRequestException(
-      //   'Failed to send verification email. Please try registering again.',
-      // );
-         return 'Your account created successfully. Please verify your email <>';
+    // try {
+    //   await this.mailService.sendOtpEmail(
+    //     createdUser,
+    //     otp,
+    //     EmailPurpose.VERIFY_EMAIL,
+    //   );
+    // } catch (error) {
+    //   // throw new BadRequestException(
+    //   //   'Failed to send verification email. Please try registering again.',
+    //   // );
+    //      return 'Your account created successfully. Please verify your email <>';
   
-    }
+    // }
 
     return 'Your account created successfully. Please verify your email';
   }

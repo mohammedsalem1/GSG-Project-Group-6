@@ -58,7 +58,7 @@ enum Rating {
 enum SwapStatus {
   PENDING
   ACCEPTED
-  REJECTED
+  DECLINED
   EXPIRED
   COMPLETED
   CANCELLED
@@ -133,6 +133,8 @@ model User {
   reviewsReceived Review[] @relation("Reviewed")
 
 
+  feedbackGiven   Feedback[] @relation("FeedbackGiver")
+  feedbackReceived Feedback[] @relation("FeedbackReceiver")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -204,12 +206,20 @@ model SwapRequest {
   offeredUserSkillId    String
   requestedUserSkill    UserSkill  @relation("RequestedSkill", fields: [requestedUserSkillId], references: [id])
   requestedUserSkillId  String
+  
 
+  /// Preferred Time
+  date      DateTime
+  startAt   DateTime       
+  endAt     DateTime         
+  timezone  String   @default("UTC")
+  
   status        SwapStatus @default(PENDING)
   rejectionReason String?
   expiresAt     DateTime
   tracking      Json?
-
+  
+  message      String?
   conversation Conversation?
   session      Session?
   reviews      Review[]
@@ -285,12 +295,14 @@ model Session {
   hostJoinedAt    DateTime?
   attendeeJoinedAt DateTime?
   
+  feedbacks   Feedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("sessions")
 }
+
 
 model Review {
   id                   String  @id @default(uuid())
@@ -304,19 +316,58 @@ model Review {
   userSkillId          String
   userSkill            UserSkill @relation(fields: [userSkillId], references: [id])
 
-  overallRating        Rating
-  communicationRating  Rating?
-  punctualityRating    Rating
+  overallRating        Rating?
   comment              String?
   isVerified           Boolean @default(true)
   isFlagged            Boolean @default(false)
-
+  isPublic             Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@map("reviews")
 
 }
+model Feedback {
+  id            String   @id @default(uuid())
+
+  sessionId     String
+  session       Session  @relation(fields: [sessionId], references: [id])
+
+  giverId       String
+  giver         User     @relation("FeedbackGiver", fields: [giverId], references: [id])
+
+  receiverId    String
+  receiver      User     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
+  
+  role          FeedbackCategory    @default(GENERAL)
+
+  // ── Teaching-related ──
+  sessionFocus        Int?   // where they focused the whole session
+  activeParticipation Int?   // actively participation
+
+  // ── Learning-related ──
+  learningFocus       Int?
+  clarity             Int?
+  patience            Int?
+  sessionStructure    Int?
+
+  // ── Shared ──
+  communication       Int?
+
+  strengths     String?
+  improvements  String?
+
+  createdAt     DateTime @default(now())
+
+  @@unique([sessionId, giverId])
+  @@map("feedbacks")
+}
+enum FeedbackCategory {
+  TEACHING
+  LEARNING
+  GENERAL
+}
+
 
 model Badge {
   id          String         @id @default(uuid())

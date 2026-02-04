@@ -13,6 +13,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SwapsModule } from './modules/swaps/swaps.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     AuthModule,
     UserModule,
     SkillsModule,
+    SwapsModule,
     ReviewsModule,
     FeedbackModule,
   ],

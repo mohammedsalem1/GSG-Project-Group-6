@@ -12,18 +12,7 @@ export class CreateReviewDto {
   @Max(5)
   overallRating: number;
 
-  @ApiPropertyOptional({ example: 4 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  communicationRating?: number;
 
-  @ApiPropertyOptional({ example: 3 })
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  punctualityRating: number;
 
   @ApiPropertyOptional({ example: 'Great session!' })
   @IsOptional()

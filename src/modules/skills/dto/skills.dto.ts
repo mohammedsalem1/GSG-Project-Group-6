@@ -114,7 +114,8 @@ export class LatestReviewDto {
   @IsOptional()
   @IsString()
   comment: string | null;
-   
+  
+  @IsOptional() 
   @ApiProperty()
   overallRating: string
 

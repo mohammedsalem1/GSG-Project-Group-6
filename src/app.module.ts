@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { SkillsModule } from './modules/skills/skills.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { AdminModule } from './modules/admin/admin.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 
@@ -23,6 +25,8 @@ import imagekitConfig from './config/imagekit.config';
     UserModule,
     SkillsModule,
     ReviewsModule,
+    FeedbackModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

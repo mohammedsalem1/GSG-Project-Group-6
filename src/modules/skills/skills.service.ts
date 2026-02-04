@@ -261,7 +261,7 @@ export class SkillsService {
         ? {
             reviewerName: userSkill.reviews[0].reviewer.userName,
             reviewerImage: userSkill.reviews[0].reviewer.image,
-            overallRating: userSkill.reviews[0].overallRating,
+            overallRating: userSkill.reviews[0].overallRating!,
             comment: userSkill.reviews[0].comment,
           }
         : null,
@@ -378,7 +378,7 @@ export class SkillsService {
   return ratingMap[rating] || 0;
   }
 
-   private calculateAvgRating(reviews: { overallRating: string }[]) {
+   private calculateAvgRating(reviews: { overallRating: any }[]) {
       const ratings = reviews.map(r => this.ratingToNumber(r.overallRating));
       const avg =
           ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;

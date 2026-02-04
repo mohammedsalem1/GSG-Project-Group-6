@@ -132,6 +132,9 @@ model User {
   reviewsGiven Review[] @relation("Reviewer")
   reviewsReceived Review[] @relation("Reviewed")
 
+  feedbackGiven   Feedback[] @relation("FeedbackGiver")
+  feedbackReceived Feedback[] @relation("FeedbackReceiver")
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -285,6 +288,7 @@ model Session {
   hostJoinedAt    DateTime?
   attendeeJoinedAt DateTime?
   
+  feedbacks   Feedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -304,18 +308,56 @@ model Review {
   userSkillId          String
   userSkill            UserSkill @relation(fields: [userSkillId], references: [id])
 
-  overallRating        Rating
-  communicationRating  Rating?
-  punctualityRating    Rating
+  overallRating        Rating?
   comment              String?
   isVerified           Boolean @default(true)
   isFlagged            Boolean @default(false)
-
+  isPublic             Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@map("reviews")
 
+}
+model Feedback {
+  id            String   @id @default(uuid())
+
+  sessionId     String
+  session       Session  @relation(fields: [sessionId], references: [id])
+
+  giverId       String
+  giver         User     @relation("FeedbackGiver", fields: [giverId], references: [id])
+
+  receiverId    String
+  receiver      User     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
+  
+  role          FeedbackCategory    @default(GENERAL)
+
+  // ── Teaching-related ──
+  sessionFocus        Int?   // where they focused the whole session
+  activeParticipation Int?   // actively participation
+
+  // ── Learning-related ──
+  learningFocus       Int?
+  clarity             Int?
+  patience            Int?
+  sessionStructure    Int?
+
+  // ── Shared ──
+  communication       Int?
+
+  strengths     String?
+  improvements  String?
+
+  createdAt     DateTime @default(now())
+
+  @@unique([sessionId, giverId])
+  @@map("feedbacks")
+}
+enum FeedbackCategory {
+  TEACHING
+  LEARNING
+  GENERAL
 }
 
 model Badge {

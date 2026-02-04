@@ -11,10 +11,10 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 export class ReviewsService {
     constructor(private readonly prismaService:PrismaService){}
 
-    async createReview(createReview:CreateReviewDto , reviewerId:string) {
+    async createReview(createReviewDto:CreateReviewDto , reviewerId:string) {
        // check the SwapRequest is exist
        const swapRequest = await this.prismaService.swapRequest.findUnique({
-        where:{id:createReview.swapRequestId},
+        where:{id:createReviewDto.swapRequestId},
         include: { session: true }
        })
 
@@ -22,16 +22,16 @@ export class ReviewsService {
           throw new BadRequestException('the swapRequest is not found')
        }
 
-       if (!swapRequest.session  || swapRequest.session!.status !== 'COMPLETED' ) {
-          throw new BadRequestException("you don't review because the session is not completed")
-       }
+      //  if (!swapRequest.session  || swapRequest.session!.status !== 'COMPLETED' ) {
+      //     throw new BadRequestException("you don't review because the session is not completed")
+      //  }
     
        if (swapRequest.requesterId !== reviewerId && swapRequest.receiverId !== reviewerId) {
             throw new ForbiddenException('You are not part of this swap');
          }
 
         const existingReview = await this.prismaService.review.findFirst({
-           where: {  swapRequestId: createReview.swapRequestId, reviewerId,
+           where: {  swapRequestId: createReviewDto.swapRequestId, reviewerId,
            },
         });
 
@@ -41,20 +41,29 @@ export class ReviewsService {
        
        const reviewedId = swapRequest.requesterId === reviewerId ? swapRequest.receiverId : swapRequest.requesterId
        const userSkillId = swapRequest.requesterId === reviewerId ?
-        swapRequest.offeredUserSkillId : swapRequest.requestedUserSkillId;
-        return await this.prismaService.review.create({
+          swapRequest.requestedUserSkillId : swapRequest.offeredUserSkillId;
+     
+      return await this.prismaService.review.create({
             data :{
-                swapRequestId:createReview.swapRequestId,
+                swapRequestId:createReviewDto.swapRequestId,
                 reviewedId,
                 reviewerId,
                 userSkillId,
-                overallRating:this.numberToRating(createReview.overallRating),
-                communicationRating:createReview.communicationRating ? this.numberToRating(createReview.communicationRating):null,
-                punctualityRating:this.numberToRating(createReview.punctualityRating),
-                 comment: createReview.comment? createReview.comment:null ,
-            }
-        })
-
+                overallRating:this.numberToRating(createReviewDto.overallRating),
+                comment: createReviewDto.comment? createReviewDto.comment:null ,
+            } , 
+              include: {
+               reviewer: {
+                  select: { id: true, userName: true, image: true }} ,
+               reviewed: {
+                  select: { id: true, userName: true, image: true }   
+               },
+               userSkill: {
+                  select: { skill: true } 
+               }
+        }})
+       
+        
     }
     
    //  async getUserReviewsGiven(userId:string ,  query:getReviewsReceivedDto) {
@@ -94,8 +103,6 @@ export class ReviewsService {
             id:true,
             comment:true , 
             overallRating:true,
-            punctualityRating:true,
-            communicationRating:true,
             reviewer:{
                select: {
                   id:true,
@@ -118,12 +125,11 @@ export class ReviewsService {
             userSkillId:query.userSkillId,
             isVerified:true}})
         const ratingsArray = reviewsForSkill.map(r => ({
-             overallRating: this.ratingToNumber(r.overallRating),
-             communicationRating: this.ratingToNumber(r.communicationRating ?? ''),
-             punctualityRating: this.ratingToNumber(r.punctualityRating),
+             overallRating: this.ratingToNumber(r.overallRating!),
          }));
 
         const avgRatingUserSkill = calculateAvgRating(ratingsArray)
+        console.log(avgRatingUserSkill);
 
         return {
             review:reviewsForSkill , 
@@ -145,9 +151,7 @@ export class ReviewsService {
          select:{
             id:true,
             comment:true , 
-            communicationRating:true,
             overallRating:true,
-            punctualityRating:true,
             reviewer:{
                select:{id:true, userName:true, image: true , bio:true}
             },
@@ -166,7 +170,7 @@ export class ReviewsService {
             ...this.prismaService.formatPaginationResponse({ page,count, limit: pagination.take})
          }
     }
-    async getReview(reviewId:string) {
+    async getReviewByReviewId(reviewId:string) {
       const reviewDetails = await this.prismaService.review.findUnique({
          where:{id:reviewId},
          include:{reviewer:{select:{id:true,userName:true,image:true}},userSkill:{include:{skill:true}} }, 
@@ -181,7 +185,7 @@ export class ReviewsService {
        const review = await this.prismaService.review.findFirst({
        where: {
          id: reviewId,
-         reviewedId: userId, // المستخدم فقط يفلّغ reviews اللي وصلتله
+         reviewedId: userId,
        },
     });
 

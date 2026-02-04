@@ -3,8 +3,8 @@ import { SwapsService } from './swaps.service';
 import { SwapsController } from './swaps.controller';
 
 @Module({
-  providers: [SwapsService],
   controllers: [SwapsController],
-  exports:[SwapsService]
+  providers: [SwapsService],
+  exports: [SwapsService],
 })
 export class SwapsModule {}

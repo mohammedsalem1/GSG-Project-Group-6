@@ -1,325 +1,482 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { CreateSwapRequestDto } from './dto/create-swap.dto';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { NotificationType, SwapStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { SwapStatus } from '@prisma/client';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { CreateSwapRequestDto, SwapRequestsQueryDto } from './dto/swaps.dto';
 
 @Injectable()
 export class SwapsService {
+  constructor(private readonly prismaService: PrismaService) {}
+  private readonly logger = new Logger(SwapsService.name);
 
-    constructor(
-        private readonly prismaService:PrismaService
-    ) {}  
-    async createSwapRequest(createSwapRequestDto:CreateSwapRequestDto, requesterId:string) {
-        // cheak requestedUserSkillId 
-        const requestedUserSkill = await this.prismaService.userSkill.findUnique({
-            where:{id:createSwapRequestDto.requestedUserSkillId},
-            select:{user:{select:{id:true}}}
-        }) 
-        if (!requestedUserSkill) {
-            throw new NotFoundException('requested Skill not found')
-        }
-
-        if (requestedUserSkill.user.id == requesterId) {
-            throw new BadRequestException('You cannot request your own skill');
-        }
-        const receiverId = requestedUserSkill.user.id;
-
-        const offeredUserSkill = await this.prismaService.userSkill.findUnique({
-            where:{id:createSwapRequestDto.offeredUserSkillId},
-            select:{user:{select:{id:true}}}
-        })
-
-        if(!offeredUserSkill || offeredUserSkill.user.id !== requesterId) {
-            throw new BadRequestException('Invalid offered skill');
-        }
-
-        const existingSwapRequest = await this.prismaService.swapRequest.findFirst({
-           where:{
-              requesterId,
-              offeredUserSkillId: createSwapRequestDto.offeredUserSkillId,
-              requestedUserSkillId: createSwapRequestDto.requestedUserSkillId,
-              status: 'PENDING',
-           }
-      });
-         if (existingSwapRequest) throw new BadRequestException('You already have a pending swap request');
-        
-        
-        return this.prismaService.swapRequest.create({
-            data:{
-                receiverId,
-                requesterId,
-                offeredUserSkillId:createSwapRequestDto.offeredUserSkillId,
-                requestedUserSkillId:createSwapRequestDto.requestedUserSkillId,
-                expiresAt:  new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-                // add message in schema prisma
-                // message: message || null, 
-            }
-        })
+  async createSwapRequest(
+    requesterId: string,
+    dto: CreateSwapRequestDto,
+  ) {
+    if (requesterId === dto.receiverId) {
+      throw new BadRequestException('You cannot send a swap request to yourself');
     }
 
-    async getSwapRequestSent(requesterId:string , query:PaginationDto) {
-        const pagination = this.prismaService.handleQueryPagination({
-          page: query.page,
-          limit: query.limit,
-        });
+    const [offeredUserSkill, requestedUserSkill] = await Promise.all([
+      this.prismaService.userSkill.findFirst({
+        where: {
+          userId: requesterId,
+          skillId: dto.offeredSkillId,
+          isOffering: true,
+        },
+      }),
+      this.prismaService.userSkill.findFirst({
+        where: {
+          userId: dto.receiverId,
+          skillId: dto.requestedSkillId,
+          isOffering: true,
+        },
+      }),
+    ]);
 
-        const { page, ...removePage } = pagination;
-        const swapRequestSent = await this.prismaService.swapRequest.findMany({
-            ...removePage,
-            where:{requesterId , expiresAt: { gt: new Date() }
-},
-            select: {
-                id:true,
-                status:true,
-                requestedUserSkill:{
-                    select:{
-                        level:true,
-                        isOffering:true,
-                        user:{
-                            select:{
-                                id:true,
-                                userName:true,
-                                image:true,
-                                isActive:true
-                            }
-                        },
-                        skill:{
-                            select:{
-                                language:true,
-                                name:true,
-                                isActive:true,
-                                
-                            }
-                        }
-
-                    }
-                },
-                offeredUserSkill:{
-                    select:{
-                        skill:{
-                            select:{
-                                id:true,
-                                name:true,
-                                language:true,
-                                
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-
-            })
-              const count =  await this.prismaService.swapRequest.count({where:{requesterId ,   expiresAt: { gt: new Date() }}})
-
-            return {
-                swapRequestSent,
-                ...this.prismaService.formatPaginationResponse({
-              page,
-              count,
-              limit: pagination.take,
-            }),}
+    if (!offeredUserSkill) {
+      throw new BadRequestException(
+        'You do not offer the selected skill',
+      );
     }
 
-    async getSwapRequestReceived(receiverId:string , query:PaginationDto) {
-        const pagination = this.prismaService.handleQueryPagination({
-          page: query.page,
-          limit: query.limit,
-        });
+    if (!requestedUserSkill) {
+      throw new BadRequestException(
+        'Receiver does not offer the requested skill',
+      );
+    }
 
-        const { page, ...removePage } = pagination;
-        const swapRequests  = await this.prismaService.swapRequest.findMany({
-            ...removePage,
-            where:{receiverId ,   expiresAt: { gt: new Date() }},
+    const duplicateRequest = await this.prismaService.swapRequest.findFirst({
+      where: {
+        requesterId,
+        receiverId: dto.receiverId,
+        offeredUserSkillId: offeredUserSkill.id,
+        requestedUserSkillId: requestedUserSkill.id,
+        status: { in: [SwapStatus.PENDING, SwapStatus.ACCEPTED] },
+      },
+    });
+
+    if (duplicateRequest) {
+      throw new BadRequestException('A similar active request already exists');
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const dateOnly = new Date(`${dto.date}T00:00:00.000Z`);
+
+    const swapRequest = await this.prismaService.swapRequest.create({
+      data: {
+        requesterId,
+        receiverId: dto.receiverId,
+        offeredUserSkillId: offeredUserSkill.id,
+        requestedUserSkillId: requestedUserSkill.id,
+        rejectionReason: null,
+        expiresAt,
+        date: dateOnly,
+        startAt: dto.startAt,   // "HH:mm"
+        endAt: dto.endAt,       // "HH:mm"
+        timezone: dto.timezone ?? 'UTC',
+      },
+    });
+
+    await this.prismaService.notification.create({
+      data: {
+        userId: dto.receiverId,
+        type: NotificationType.SWAP_REQUEST,
+        title: 'New swap request',
+        message: 'You have received a new swap request',
+        data: { swapRequestId: swapRequest.id },
+      },
+    });
+
+    return swapRequest;
+  }
+
+  async getSentRequests(
+    userId: string,
+    query: SwapRequestsQueryDto,
+  ): Promise<PaginatedResponseDto<any>> {
+    const where = {
+      requesterId: userId,
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    const pagination = this.prismaService.handleQueryPagination(query);
+    const { page, ...paginationArgs } = pagination;
+
+    const [requests, count] = await Promise.all([
+      this.prismaService.swapRequest.findMany({
+        ...paginationArgs,
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          receiver: {
             select: {
-                id:true,
-                status:true,
-                offeredUserSkill:{
-                    select:{
-                        level:true,
-                        isOffering:true,
-                        user:{
-                            select:{
-                                id:true,
-                                userName:true,
-                                image:true,
-                                isActive:true
-                            }
-                        },
-                        skill:{
-                            select:{
-                                language:true,
-                                name:true,
-                                isActive:true,
-                                
-                            }
-                        }
-
-                    }
+              id: true,
+              userName: true,
+              image: true,
+            },
+          },
+          offeredUserSkill: {
+            include: {
+              skill: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
-                requestedUserSkill:{
-                    select:{
-                        skill:{
-                            select:{
-                                id:true,
-                                name:true,
-                                language:true,
-                                
-                            }
-                        }
-                    }
-                }
+              },
             },
-            orderBy: { createdAt: 'desc' }
-
-        })
-        const count =  await this.prismaService.swapRequest.count({where:{receiverId ,   expiresAt: { gt: new Date() }}})
-
-        return {
-            swapRequests,
-            pagination:{ ...this.prismaService.formatPaginationResponse({
-              page,
-              count,
-              limit: pagination.take,
-            }),
-          }};
-
-        }
-    
-    
-    async getRequestByRequestId(swapRequestId:string , userId:string) {
-      
-  const swapRequest = await this.prismaService.swapRequest.findUnique({
-    where: { id: swapRequestId },
-    include: {
-      requester: { select: { id: true, userName: true, image: true } },
-      receiver: { select: { id: true, userName: true, image: true } },
-      offeredUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
-      requestedUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
-    },
-  });
-
-
-        if (!swapRequest) {
-              throw new NotFoundException('Swap request not found');
-            }
-        if ( swapRequest.requesterId !== userId &&  swapRequest.receiverId !== userId ) {
-              throw new ForbiddenException('You are not authorized to view this swap request');
-           }
-
-
-         return swapRequest
-      }
-      /// make notifications
-    async acceptSwapRequest(swapRequestId: string, userId: string) {
-        const swapRequest = await this.prismaService.swapRequest.findUnique({
-            where: { id: swapRequestId }});
-
-        if (!swapRequest) {
-            throw new NotFoundException('Swap request not found');
-        }
-
-        if (swapRequest.receiverId !== userId) {
-            throw new ForbiddenException('You are not authorized to accept this request');
-        }
-
-        if (swapRequest.status !==  SwapStatus.PENDING) {
-            throw new BadRequestException('Swap request is not pending');
-        }
-
-        const updatedRequest = await this.prismaService.swapRequest.update({
-            where: { id: swapRequestId },
-            data: { status: SwapStatus.ACCEPTED },
+          },
+          requestedUserSkill: {
             include: {
-            requester: { select: { id: true, userName: true, image: true } },
-            receiver: { select: { id: true, userName: true, image: true } },
-            offeredUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
-            requestedUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
+              skill: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
-        });
+          },
+        },
+      }),
+      this.prismaService.swapRequest.count({ where }),
+    ]);
 
+    return {
+      data: requests,
+      ...this.prismaService.formatPaginationResponse({
+        page,
+        count,
+        limit: pagination.take,
+      }),
+    };
+  }
 
-        return  updatedRequest ;
-     }
-     /// make notifications
-     async  cancelSwapRequest(swapRequestId: string, userId: string) {
-        const swapRequest = await this.prismaService.swapRequest.findUnique({where: { id: swapRequestId }});
+  async getReceivedRequests(
+    userId: string,
+    query: SwapRequestsQueryDto,
+  ): Promise<PaginatedResponseDto<any>> {
+    const where = {
+      receiverId: userId,
+      ...(query.status ? { status: query.status } : {}),
+    };
 
-        if (!swapRequest) {
-            throw new NotFoundException('Swap request not found');
-        }
-        if (swapRequest.requesterId !== userId) {
-            throw new ForbiddenException('You are not authorized to cancel this request');
-        }
-        if (swapRequest.status !== SwapStatus.PENDING) {
-            throw new BadRequestException('Only pending requests can be cancelled');
-        }
-        const updatedRequest = await this.prismaService.swapRequest.update({
-            where: { id: swapRequestId },
-            data: { status: SwapStatus.CANCELLED },
+    const pagination = this.prismaService.handleQueryPagination(query);
+    const { page, ...paginationArgs } = pagination;
+
+    const [requests, count] = await Promise.all([
+      this.prismaService.swapRequest.findMany({
+        ...paginationArgs,
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          requester: {
+            select: {
+              id: true,
+              userName: true,
+              image: true,
+            },
+          },
+          offeredUserSkill: {
             include: {
-            requester: { select: { id: true, userName: true, image: true } },
-            receiver: { select: { id: true, userName: true, image: true } },
-            offeredUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
-            requestedUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
+              skill: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
-        });
-
-
-        return  updatedRequest ;
-     }
-      
-     async declineSwapRequest(swapRequestId: string, userId: string , reason?:string) {
-          const swapRequest = await this.prismaService.swapRequest.findUnique({ where: { id: swapRequestId }});
-
-        if (!swapRequest) {
-            throw new NotFoundException('Swap request not found');
-        }
-        if (swapRequest.receiverId !== userId) {
-            throw new ForbiddenException('You are not authorized to decline this request');
-        }
-        if (swapRequest.status !== SwapStatus.PENDING) {
-            throw new BadRequestException('Only pending requests can be cancelled');
-        }
-        const updatedRequest = await this.prismaService.swapRequest.update({
-            where: { id: swapRequestId },
-            data: { status: SwapStatus.REJECTED , rejectionReason:reason?? null },
+          },
+          requestedUserSkill: {
             include: {
-            requester: { select: { id: true, userName: true, image: true } },
-            receiver: { select: { id: true, userName: true, image: true } },
-            offeredUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
-            requestedUserSkill: { include: { skill: { select: { id: true, name: true, language: true } } } },
+              skill: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
-        });
+          },
+        },
+      }),
+      this.prismaService.swapRequest.count({ where }),
+    ]);
 
+    return {
+      data: requests,
+      ...this.prismaService.formatPaginationResponse({
+        page,
+        count,
+        limit: pagination.take,
+      }),
+    };
+  }
 
-        return  updatedRequest ;
-     }
-      async getRequestStatistics(userId: string) {
-        const now = new Date();
-
-        const [sent, received] = await Promise.all([
-            this.prismaService.swapRequest.count({
-            where: {
-                requesterId: userId,
-                expiresAt: { gt: now },
+  async getRequestById(userId: string, requestId: string) {
+    const request = await this.prismaService.swapRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        requester: {
+          select: {
+            id: true,
+            userName: true,
+            image: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            userName: true,
+            image: true,
+          },
+        },
+        offeredUserSkill: {
+          include: {
+            skill: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
             },
-            }),
-            this.prismaService.swapRequest.count({
-            where: {
-                receiverId: userId,
-                expiresAt: { gt: now }, 
+          },
+        },
+        requestedUserSkill: {
+          include: {
+            skill: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
             },
-            }),
-        ]);
+          },
+        },
+        conversation: {
+          select: {
+            id: true,
+            isArchived: true,
+          },
+        },
+        session: {
+          select: {
+            id: true,
+            status: true,
+            scheduledAt: true,
+          },
+        },
+      },
+    });
 
-        return {
-            totalSwap: sent + received,
-            swapRequestSent: sent,
-            swapRequestReceived: received,
-        };
-      }
+    if (!request) {
+      throw new NotFoundException('Swap request not found');
+    }
+
+    if (request.requesterId !== userId && request.receiverId !== userId) {
+      throw new ForbiddenException('You are not allowed to access this request');
+    }
+
+    return request;
+  }
+
+  async acceptRequest(userId: string, requestId: string) {
+    const request = await this.prismaService.swapRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Swap request not found');
+    }
+
+    if (request.receiverId !== userId) {
+      throw new ForbiddenException('Only the receiver can accept this request');
+    }
+
+    if (request.status !== SwapStatus.PENDING) {
+      throw new BadRequestException('Only pending requests can be accepted');
+    }
+
+    const updated = await this.prismaService.swapRequest.update({
+      where: { id: requestId },
+      data: { status: SwapStatus.ACCEPTED },
+    });
+
+    await this.prismaService.notification.create({
+      data: {
+        userId: request.requesterId,
+        type: NotificationType.SWAP_ACCEPTED,
+        title: 'Swap request accepted',
+        message: 'Your swap request has been accepted',
+        data: { swapRequestId: updated.id },
+      },
+    });
+
+    return updated;
+  }
+
+  async rejectRequest(userId: string, requestId: string, reason?: string) {
+    const request = await this.prismaService.swapRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Swap request not found');
+    }
+
+    if (request.receiverId !== userId) {
+      throw new ForbiddenException('Only the receiver can reject this request');
+    }
+
+    if (request.status !== SwapStatus.PENDING) {
+      throw new BadRequestException('Only pending requests can be rejected');
+    }
+
+    const updated = await this.prismaService.swapRequest.update({
+      where: { id: requestId },
+      data: {
+        status: SwapStatus.REJECTED,
+        rejectionReason: reason ?? null,
+      },
+    });
+
+    await this.prismaService.notification.create({
+      data: {
+        userId: request.requesterId,
+        type: NotificationType.SWAP_REJECTED,
+        title: 'Swap request rejected',
+        message: reason
+          ? `Your swap request was rejected: ${reason}`
+          : 'Your swap request was rejected',
+        data: { swapRequestId: updated.id },
+      },
+    });
+
+    return updated;
+  }
+
+  async cancelRequest(userId: string, requestId: string) {
+    const request = await this.prismaService.swapRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Swap request not found');
+    }
+
+    if (request.requesterId !== userId) {
+      throw new ForbiddenException('Only the requester can cancel this request');
+    }
+
+    if (
+      request.status !== SwapStatus.PENDING &&
+      request.status !== SwapStatus.ACCEPTED
+    ) {
+      throw new BadRequestException(
+        'Only pending or accepted requests can be cancelled',
+      );
+    }
+
+    const updated = await this.prismaService.swapRequest.update({
+      where: { id: requestId },
+      data: { status: SwapStatus.CANCELLED },
+    });
+
+    await this.prismaService.notification.create({
+      data: {
+        userId: request.receiverId,
+        type: NotificationType.SYSTEM,
+        title: 'Swap request cancelled',
+        message: 'The swap request has been cancelled by the requester',
+        data: { swapRequestId: updated.id },
+      },
+    });
+
+    return updated;
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async expirePendingRequests() {
+    const result = await this.prismaService.swapRequest.updateMany({
+      where: {
+        status: SwapStatus.PENDING,
+        expiresAt: { lt: new Date() },
+      },
+      data: { status: SwapStatus.EXPIRED },
+    });
+
+    this.logger.log(`Expired swap requests: ${result.count}`);
+  }
+
+  async getStats(userId: string) {
+    const [sentTotal, receivedTotal, accepted, rejected] = await Promise.all([
+      this.prismaService.swapRequest.count({ where: { requesterId: userId } }),
+      this.prismaService.swapRequest.count({ where: { receiverId: userId } }),
+      this.prismaService.swapRequest.count({
+        where: {
+          OR: [{ requesterId: userId }, { receiverId: userId }],
+          status: SwapStatus.ACCEPTED,
+        },
+      }),
+      this.prismaService.swapRequest.count({
+        where: {
+          OR: [{ requesterId: userId }, { receiverId: userId }],
+          status: SwapStatus.REJECTED,
+        },
+      }),
+    ]);
+
+    const totalDecisions = accepted + rejected;
+    const acceptanceRate =
+      totalDecisions === 0 ? 0 : Math.round((accepted / totalDecisions) * 100);
+
+    return {
+      sentTotal,
+      receivedTotal,
+      accepted,
+      rejected,
+      acceptanceRate,
+    };
+  }
 }
-

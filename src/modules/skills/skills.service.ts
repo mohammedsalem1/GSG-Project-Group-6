@@ -49,8 +49,8 @@ export class SkillsService {
         };
        if (searchName) {
          whereClause.OR = [
-            {  skill: { name: { contains: searchName, mode: 'insensitive'}}},
-            {  skill: { category: { name: { contains: searchName, mode: 'insensitive'}}}},];
+            {  skill: { name: { contains: searchName }}},
+            {  skill: { category: { name: { contains: searchName }}}},];
        }
 
       const { page, ...removePage } = pagination;
@@ -101,8 +101,7 @@ export class SkillsService {
          ...(query.level && { level: query.level }),
          ...(query.isOffering !== undefined && { isOffering: query.isOffering }),
 
-         skill: { isActive: true, ...(query.language && { language: { contains: query.language,mode: 'insensitive'},
-    }),
+         skill: { isActive: true, ...(query.language && { language: { contains: query.language }}),
   },
       };
 

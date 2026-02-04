@@ -1,355 +1,281 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { SwapsService } from './swaps.service';
-import { CreateSwapRequestDto } from './dto/create-swap.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import type{ RequestUser } from 'src/common/types/user.types';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { DeclineSwapRequestDto } from './dto/decline-swap.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { RequestUser } from 'src/common/types/user.types';
+import { SwapsService } from './swaps.service';
+import {
+  CreateSwapRequestDto,
+  RejectSwapRequestDto,
+  SwapRequestsQueryDto,
+} from './dto/swaps.dto';
+
+const swapRequestExample = {
+  success: true,
+  data: {
+    id: '3b6f1d2e-1111-4b2c-9c2f-1a2b3c4d5e6f',
+    requesterId: '7a8b9c0d-2222-4e3f-8a1b-2c3d4e5f6a7b',
+    receiverId: '9c0d1e2f-3333-4f5a-9b1c-3d4e5f6a7b8c',
+    offeredUserSkillId: '1e2f3a4b-4444-4a5b-9c1d-4e5f6a7b8c9d',
+    requestedUserSkillId: '2f3a4b5c-5555-4b6c-9d1e-5f6a7b8c9d0e',
+    status: 'PENDING',
+    rejectionReason: null,
+    expiresAt: '2026-02-07T00:00:00.000Z',
+    tracking: { message: 'Hi, I can teach React in exchange for UI/UX.' },
+    createdAt: '2026-01-31T00:00:00.000Z',
+    updatedAt: '2026-01-31T00:00:00.000Z',
+  },
+};
+
+const swapRequestListExample = {
+  success: true,
+  data: {
+    data: [
+      {
+        id: '3b6f1d2e-1111-4b2c-9c2f-1a2b3c4d5e6f',
+        status: 'PENDING',
+        rejectionReason: null,
+        expiresAt: '2026-02-07T00:00:00.000Z',
+        createdAt: '2026-01-31T00:00:00.000Z',
+        receiver: {
+          id: '9c0d1e2f-3333-4f5a-9b1c-3d4e5f6a7b8c',
+          userName: 'sara',
+          image: null,
+        },
+        offeredUserSkill: {
+          skill: {
+            id: '8c7b6a5d-1234-4d3e-8f9a-0b1c2d3e4f5a',
+            name: 'React',
+            description: 'Frontend library',
+            category: { id: 'cat-1111-2222-3333-4444', name: 'Web' },
+          },
+        },
+        requestedUserSkill: {
+          skill: {
+            id: '7b6a5d4c-2345-4e3f-9a0b-1c2d3e4f5a6b',
+            name: 'UI/UX',
+            description: 'Design skills',
+            category: { id: 'cat-5555-6666-7777-8888', name: 'Design' },
+          },
+        },
+      },
+    ],
+    total: 1,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  },
+};
+
+const swapRequestDetailsExample = {
+  success: true,
+  data: {
+    id: '3b6f1d2e-1111-4b2c-9c2f-1a2b3c4d5e6f',
+    status: 'PENDING',
+    rejectionReason: null,
+    expiresAt: '2026-02-07T00:00:00.000Z',
+    createdAt: '2026-01-31T00:00:00.000Z',
+    requester: {
+      id: '7a8b9c0d-2222-4e3f-8a1b-2c3d4e5f6a7b',
+      userName: 'mohammed',
+      image: null,
+    },
+    receiver: {
+      id: '9c0d1e2f-3333-4f5a-9b1c-3d4e5f6a7b8c',
+      userName: 'sara',
+      image: null,
+    },
+    offeredUserSkill: {
+      skill: {
+        id: '8c7b6a5d-1234-4d3e-8f9a-0b1c2d3e4f5a',
+        name: 'React',
+        description: 'Frontend library',
+        category: { id: 'cat-1111-2222-3333-4444', name: 'Web' },
+      },
+    },
+    requestedUserSkill: {
+      skill: {
+        id: '7b6a5d4c-2345-4e3f-9a0b-1c2d3e4f5a6b',
+        name: 'UI/UX',
+        description: 'Design skills',
+        category: { id: 'cat-5555-6666-7777-8888', name: 'Design' },
+      },
+    },
+    conversation: { id: 'conv-1111-2222-3333-4444', isArchived: false },
+    session: {
+      id: 'sess-1111-2222-3333-4444',
+      status: 'SCHEDULED',
+      scheduledAt: '2026-02-02T14:00:00.000Z',
+    },
+  },
+};
+
+const swapStatsExample = {
+  success: true,
+  data: {
+    sentTotal: 3,
+    receivedTotal: 2,
+    accepted: 1,
+    rejected: 1,
+    acceptanceRate: 50,
+  },
+};
 
 @ApiTags('swaps')
 @Controller('swaps')
 export class SwapsController {
-     
-    constructor (private readonly swapsService:SwapsService) {}
-    
-    @Post('requests')
-    @ApiNotFoundResponse({ description: 'Requested user skill not found' })
-    @ApiOperation({ summary: 'Create swap Request' })
-    @ApiCreatedResponse({
-      description: 'Create swap Request successfully',
-        schema: {
-         example: {
-           success: true,
-           data: {
-             swapRequest: {
-               id: "13524a22-1624-4303-908b-72617022ff80",
-               requesterId: "686d452f-ddf9-4b60-8164-391517bc0fe7",
-               receiverId: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-               offeredUserSkillId: "94c37a3f-d6ad-4633-b808-ebb243017348",
-               requestedUserSkillId: "d969467d-43dc-40dc-90e1-1a610b2d0dee",
-               status: "PENDING",
-               rejectionReason: null,
-               expiresAt: "2026-02-07T22:10:05.179Z",
-               tracking: null,
-               createdAt: "2026-01-31T22:10:05.182Z",
-               updatedAt: "2026-01-31T22:10:05.182Z"
-        }
-      }
-    }
+  constructor(private readonly swapsService: SwapsService) { }
+
+  @Post('requests')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create swap request' })
+  @ApiCreatedResponse({
+    description: 'Swap request created successfully',
+    schema: { example: swapRequestExample },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid swap request' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async createSwapRequest(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: CreateSwapRequestDto,
+  ) {
+    return this.swapsService.createSwapRequest(user.id, dto);
   }
-    })
-    @ApiBadRequestResponse({ description:  'Invalid offered skill or same as requested'})
-    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    async createSwapRequest(
-        @Body() createSwapRequestDto:CreateSwapRequestDto,
-        @CurrentUser() user: RequestUser,
 
-    ) {
-        return this.swapsService.createSwapRequest(createSwapRequestDto , user.id)
-    }
+  @Get('requests/sent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get current user sent swap requests' })
+  @ApiOkResponse({
+    description: 'Sent swap requests fetched successfully',
+    schema: { example: swapRequestListExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getSentRequests(
+    @CurrentUser() user: RequestUser,
+    @Query() query: SwapRequestsQueryDto,
+  ) {
+    return this.swapsService.getSentRequests(user.id, query);
+  }
 
-    @Get('requests/sent')
-    @ApiNotFoundResponse({ description: 'No swapRequest Sent' })
-    @ApiOperation({ summary: 'get swap Request sent' })
-    @ApiOkResponse({
-      description: 'get swap Request sent',
-        schema: {
-         example: {
-           success: true,
-           data: [
-            {
-              id: "13524a22-1624-4303-908b-72617022ff80",
-              status: "PENDING",
-              requestedUserSkill: {
-                 level: "INTERMEDIATE",
-                 isOffering: true,
-                 user: {
-                   id: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-                   userName: "ahmed",
-                   image: null,
-                   isActive: true
-                 },
-                 skill: {
-                   language: "English",
-                   name: "React",
-                   isActive: true
-                 }
-              },
-              offeredUserSkill: {
-                skill: {
-                  id: "faa846ec-df6b-4dad-9671-12221c2928ce",
-                  name: "Ui-Ux",
-                  language: "English"
-            }
-          }
-        }
-      ]
-    }
-      }
-})
+  @Get('requests/received')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get current user received swap requests' })
+  @ApiOkResponse({
+    description: 'Received swap requests fetched successfully',
+    schema: { example: swapRequestListExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getReceivedRequests(
+    @CurrentUser() user: RequestUser,
+    @Query() query: SwapRequestsQueryDto,
+  ) {
+    return this.swapsService.getReceivedRequests(user.id, query);
+  }
 
-    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    async getSwapRequestSent(
-        @CurrentUser() user: RequestUser,
-        @Query() query:PaginationDto
+  @Get('requests/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get swap request by id' })
+  @ApiParam({ name: 'id', description: 'Swap request id' })
+  @ApiOkResponse({
+    description: 'Swap request fetched successfully',
+    schema: { example: swapRequestDetailsExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Swap request not found' })
+  @ApiForbiddenResponse({ description: 'You are not allowed to access this request' })
+  async getRequestById(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ) {
+    return this.swapsService.getRequestById(user.id, id);
+  }
 
-    ) {
-         return this.swapsService.getSwapRequestSent(user.id , query)
-    }
+  @Patch('requests/:id/accept')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Accept swap request' })
+  @ApiParam({ name: 'id', description: 'Swap request id' })
+  @ApiOkResponse({
+    description: 'Swap request accepted successfully',
+    schema: { example: swapRequestExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Swap request not found' })
+  @ApiForbiddenResponse({ description: 'Only the receiver can accept this request' })
+  @ApiBadRequestResponse({ description: 'Only pending requests can be accepted' })
+  async acceptRequest(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ) {
+    return this.swapsService.acceptRequest(user.id, id);
+  }
 
-    @Get('requests/received')
-    @ApiNotFoundResponse({ description: 'No swapRequest received' })
-    @ApiOperation({ summary: 'get swap Request received' })
-    @ApiOkResponse({
-      description: 'get swap Request recived',
-        schema: {
-         example: {
-           success: true,
-           data: [
-            {
-              id: "13524a22-1624-4303-908b-72617022ff80",
-              status: "PENDING",
-              requestedUserSkill: {
-                 level: "INTERMEDIATE",
-                 isOffering: true,
-                 user: {
-                   id: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-                   userName: "ahmed",
-                   image: null,
-                   isActive: true
-                 },
-                 skill: {
-                   language: "English",
-                   name: "React",
-                   isActive: true
-                 }
-              },
-              offeredUserSkill: {
-                skill: {
-                  id: "faa846ec-df6b-4dad-9671-12221c2928ce",
-                  name: "Ui-Ux",
-                  language: "English"
-            }
-              },
-              pagination: {
-                page: 1,
-                limit: 10,
-                totalCount: 25,
-                totalPages: 3
-           }
-        }
-      ]
-    }
-      }
-    })
-    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    async getSwapRequestReceived(
-        @CurrentUser() user: RequestUser,
-        @Query() query:PaginationDto
-    ) {
-         return this.swapsService.getSwapRequestReceived(user.id,query)
-    }
+  @Patch('requests/:id/reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Reject swap request' })
+  @ApiParam({ name: 'id', description: 'Swap request id' })
+  @ApiOkResponse({
+    description: 'Swap request rejected successfully',
+    schema: { example: swapRequestExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Swap request not found' })
+  @ApiForbiddenResponse({ description: 'Only the receiver can reject this request' })
+  @ApiBadRequestResponse({ description: 'Only pending requests can be rejected' })
+  async rejectRequest(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: RejectSwapRequestDto,
+  ) {
+    return this.swapsService.rejectRequest(user.id, id, dto?.reason);
+  }
 
-     
-    @Get('requests/:requestId')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    @ApiOperation({ summary: 'Get details of a specific swap request' })
-    
-    @ApiOkResponse({
-       description: 'get swap Request received',
-       schema: {
-          example: {
-            success: true,
-            data: {
-              id: "13524a22-1624-4303-908b-72617022ff80",
-              requesterId: "686d452f-ddf9-4b60-8164-391517bc0fe7",
-              receiverId: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-              status: "PENDING",
-              requester: {
-                 id: "686d452f-ddf9-4b60-8164-391517bc0fe7",
-                 userName: "ahmed",
-                 image: null,
-              },
-              receiver: {
-                id: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-                userName: "mohammed",
-                image: null,
-             },
-               offeredUserSkill: {
-                 skill: {
-                    id: "faa846ec-df6b-4dad-9671-12221c2928ce",
-                    name: "UI-UX",
-                    language: "English",
-          },
-        },
-              requestedUserSkill: {
-                 skill: {
-                     id: "c743cdc1-0fee-4ba4-9a25-88089a24004b",
-                     name: "React",
-                    language: "English",
-                },
-        },
-      },
-    },
-  },
-    })
-    @ApiParam({
-       name: 'requestId',
-       description: 'Swap request id',
-       example: '13524a22-1624-4303-908b-72617022ff80',
-     })
-    @ApiNotFoundResponse({description: 'Swap request not found'})
-    @ApiForbiddenResponse({ description: 'User not authorized to view this swap request'})
-    async getRequestByRequestId(
-        @CurrentUser() user: RequestUser,
-        @Param('requestId') requestId: string,
-    ) {
-        return this.swapsService.getRequestByRequestId(requestId, user.id )
-    }
+  @Patch('requests/:id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Cancel swap request' })
+  @ApiParam({ name: 'id', description: 'Swap request id' })
+  @ApiOkResponse({
+    description: 'Swap request cancelled successfully',
+    schema: { example: swapRequestExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Swap request not found' })
+  @ApiForbiddenResponse({ description: 'Only the requester can cancel this request' })
+  @ApiBadRequestResponse({ description: 'Only pending or accepted requests can be cancelled' })
+  async cancelRequest(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ) {
+    return this.swapsService.cancelRequest(user.id, id);
+  }
 
-    @Patch('requests/:requestId/accept')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    @ApiParam({
-      name: 'requestId',
-      description: 'Swap request id',
-      example: '13524a22-1624-4303-908b-72617022ff80',
-    })
-    @ApiOkResponse({
-      description: 'Swap request accepted successfully',
-      schema: {
-        example: {
-          success: true,
-          data: {
-            id: "13524a22-1624-4303-908b-72617022ff80",
-            requesterId: "686d452f-ddf9-4b60-8164-391517bc0fe7",
-            receiverId: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-            status: "ACCEPTED",
-            requester: { id: "...", userName: "ali", image: null },
-            receiver: { id: "...", userName: "ahmed", image: null },
-            offeredUserSkill: { skill: { id: "...", name: "UI-UX", language: "English" } },
-            requestedUserSkill: { skill: { id: "...", name: "React", language: "English" } },
-          },
-        },
-      },
-    })
-    @ApiOperation({ summary: 'Accept a pending swap request' })
-    @ApiNotFoundResponse({ description: 'Swap request not found' })
-    @ApiForbiddenResponse({ description: 'User not authorized to accept this request' })
-    @ApiBadRequestResponse({ description: 'Swap request is not pending' })
-    async acceptSwapRequest(
-      @CurrentUser() user: RequestUser,
-      @Param('requestId') requestId: string,
-    ) {
-      return this.swapsService.acceptSwapRequest(requestId, user.id);
-    }
-
-    /// cancel swap Request
-    @Patch('requests/:requestId/cancel')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    @ApiOperation({ summary: 'Cancel a pending swap request (by requester)' })
-    @ApiParam({
-      name: 'requestId',
-      description: 'Swap request id',
-      example: '13524a22-1624-4303-908b-72617022ff80',
-    })
-    @ApiOkResponse({
-      description: 'Swap request canceled successfully',
-      schema: {
-        example: {
-          success: true,
-          data: {
-            id: "13524a22-1624-4303-908b-72617022ff80",
-            requesterId: "686d452f-ddf9-4b60-8164-391517bc0fe7",
-            receiverId: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-            status: "CANCELLED",
-            requester: { id: "...", userName: "ali", image: null },
-            receiver: { id: "...", userName: "ahmed", image: null },
-            offeredUserSkill: { skill: { id: "...", name: "UI-UX", language: "English" } },
-            requestedUserSkill: { skill: { id: "...", name: "React", language: "English" } },
-          },
-        },
-      },
-    })
-    @ApiNotFoundResponse({ description: 'Swap request not found' })
-    @ApiForbiddenResponse({ description: 'User not authorized to accept this request' })
-    @ApiBadRequestResponse({ description: 'Swap request is not pending' })
-    async cancelSwapRequest(
-      @CurrentUser() user: RequestUser,
-      @Param('requestId') requestId: string,
-    ) {
-      return this.swapsService.cancelSwapRequest(requestId, user.id);
-    }
-    //decline
-
-     /// cancel swap Request
-    @Patch('requests/:requestId/decline')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
-    @ApiOperation({ summary: 'Decline a swap request (by receiver) optionally with reason' })
-    @ApiParam({
-      name: 'requestId',
-      description: 'Swap request id',
-      example: '13524a22-1624-4303-908b-72617022ff80',
-    })
-    @ApiOkResponse({
-      description: 'Swap request accepted successfully',
-      schema: {
-        example: {
-          success: true,
-          data: {
-            id: "13524a22-1624-4303-908b-72617022ff80",
-            requesterId: "686d452f-ddf9-4b60-8164-391517bc0fe7",
-            receiverId: "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-            status: "CANCELLED",
-            requester: { id: "...", userName: "ali", image: null },
-            receiver: { id: "...", userName: "ahmed", image: null },
-            offeredUserSkill: { skill: { id: "...", name: "UI-UX", language: "English" } },
-            requestedUserSkill: { skill: { id: "...", name: "React", language: "English" } },
-          },
-        },
-      },
-    })
-    @ApiNotFoundResponse({ description: 'Swap request not found' })
-    @ApiForbiddenResponse({ description: 'User not authorized to accept this request' })
-    @ApiBadRequestResponse({ description: 'Swap request is not pending' })
-    async declineSwapRequest(
-      @CurrentUser() user: RequestUser,
-      @Param('requestId') requestId: string,
-      @Body() dto:DeclineSwapRequestDto
-    ) {
-      return this.swapsService.declineSwapRequest(requestId, user.id , dto.reason);
-    }
-    /// Get Request Statistics
-    @Get('stats')
-    @UseGuards(JwtAuthGuard)
-    @ApiOperation({ summary: 'Get statistics of swap requests for current user' })
-    @ApiBearerAuth('JWT-auth')
-    @ApiOkResponse({ description: 'Get user swap request statistics',
-        schema: {
-          example: {
-            success: true,
-            data: {
-              totalSwap: 10,
-              swapRequestSent: 6,
-              swapRequestReceived: 4
-            }
-          }
-      }
-})
-    async getRequestStatistics(
-         @CurrentUser() user: RequestUser,
-    ) {
-       return this.swapsService.getRequestStatistics(user.id)
-    }
+  @Get('stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get swap request statistics' })
+  @ApiOkResponse({
+    description: 'Swap statistics fetched successfully',
+    schema: { example: swapStatsExample },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getStats(@CurrentUser() user: RequestUser) {
+    return this.swapsService.getStats(user.id);
+  }
 }

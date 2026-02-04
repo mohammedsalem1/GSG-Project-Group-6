@@ -101,7 +101,6 @@ export class AuthService {
       return 'Email is already verified'
     }
     await this.validateOtp(user.email , otpCode)
-    await this.userService.verifyUserEmail(email);
     
     if (type === OtpType.VERIFY_EMAIL) {
       await this.userService.verifyUserEmail(email);

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rating } from '@prisma/client';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 
 
@@ -124,7 +124,7 @@ export class SkillsService {
   
           return {
             data: usersSkill.map((item) => {
-            const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+            const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived );
 
             return {
                 skill: item.skill,
@@ -378,7 +378,7 @@ export class SkillsService {
   return ratingMap[rating] || 0;
   }
 
-   private calculateAvgRating(reviews: { overallRating: string }[]) {
+   private calculateAvgRating(reviews: { overallRating:  any }[]) {
       const ratings = reviews.map(r => this.ratingToNumber(r.overallRating));
       const avg =
           ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;

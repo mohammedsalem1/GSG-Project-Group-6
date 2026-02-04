@@ -58,7 +58,7 @@ enum Rating {
 enum SwapStatus {
   PENDING
   ACCEPTED
-  REJECTED
+  DECLINED
   EXPIRED
   COMPLETED
   CANCELLED
@@ -204,12 +204,20 @@ model SwapRequest {
   offeredUserSkillId    String
   requestedUserSkill    UserSkill  @relation("RequestedSkill", fields: [requestedUserSkillId], references: [id])
   requestedUserSkillId  String
+  
 
+  /// Preferred Time
+  date      DateTime
+  startAt   String   // "HH:mm"
+  endAt     String   // "HH:mm"
+  timezone  String   @default("UTC")
+  
   status        SwapStatus @default(PENDING)
   rejectionReason String?
   expiresAt     DateTime
   tracking      Json?
-
+  
+  message      String?
   conversation Conversation?
   session      Session?
   reviews      Review[]
@@ -265,7 +273,7 @@ model Session {
   swapRequest     SwapRequest      @relation(fields: [swapRequestId], references: [id])
   swapRequestId   String           @unique
   conversation    Conversation     @relation(fields: [conversationId], references: [id])
-  conversationId String            @unique
+  conversationId String           @unique
   host            User             @relation("Host", fields: [hostId], references: [id])
   hostId          String
   attendee        User             @relation("Attendee", fields: [attendeeId], references: [id])

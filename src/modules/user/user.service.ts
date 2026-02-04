@@ -343,8 +343,6 @@ export class UserService {
         reviewsReceived: {
           select: {
             overallRating: true,
-            communicationRating: true,
-            punctualityRating: true,
           },
         },
 
@@ -366,7 +364,7 @@ export class UserService {
     }
 
     // Convert Rating enum to number
-    const ratingToNumber = (rating: string): number => {
+    const ratingToNumber = (rating: any): number => {
       const ratingMap: Record<string, number> = {
         ONE: 1,
         TWO: 2,

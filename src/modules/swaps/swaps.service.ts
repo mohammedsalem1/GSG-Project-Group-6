@@ -65,6 +65,8 @@ export class SwapsService {
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     const dateOnly = new Date(`${dto.date}T00:00:00.000Z`);
+    const startAt = new Date(`${dto.date}T${dto.startAt}:00${dto.timezone === 'UTC' ? 'Z' : ''}`);
+    const endAt   = new Date(`${dto.date}T${dto.endAt}:00${dto.timezone === 'UTC' ? 'Z' : ''}`);
 
     const swapRequest = await this.prismaService.swapRequest.create({
       data: {
@@ -75,8 +77,8 @@ export class SwapsService {
         rejectionReason: null,
         expiresAt,
         date: dateOnly,
-        startAt: dto.startAt,   // "HH:mm"
-        endAt: dto.endAt,       // "HH:mm"
+        startAt,
+        endAt,
         timezone: dto.timezone ?? 'UTC',
       },
     });
@@ -356,7 +358,7 @@ export class SwapsService {
     return updated;
   }
 
-  async rejectRequest(userId: string, requestId: string, reason?: string) {
+  async declineRequest(userId: string, requestId: string, reason?: string) {
     const request = await this.prismaService.swapRequest.findUnique({
       where: { id: requestId },
     });
@@ -376,7 +378,7 @@ export class SwapsService {
     const updated = await this.prismaService.swapRequest.update({
       where: { id: requestId },
       data: {
-        status: SwapStatus.REJECTED,
+        status: SwapStatus.DECLINED,
         rejectionReason: reason ?? null,
       },
     });
@@ -462,7 +464,7 @@ export class SwapsService {
       this.prismaService.swapRequest.count({
         where: {
           OR: [{ requesterId: userId }, { receiverId: userId }],
-          status: SwapStatus.REJECTED,
+          status: SwapStatus.DECLINED,
         },
       }),
     ]);

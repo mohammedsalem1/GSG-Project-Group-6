@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SwapStatus } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class CreateSwapRequestDto {
@@ -23,6 +23,33 @@ export class CreateSwapRequestDto {
   @IsOptional()
   @IsString()
   message?: string;
+
+  @ApiProperty({ example: '2026-02-04', description: 'Preferred date of the session' })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+      message: 'date must be in YYYY-MM-DD format',
+   })
+  date: string; 
+
+  @ApiProperty({ example: '14:00', description: 'Session start time (HH:mm)' })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+
+  startAt: string; 
+
+  @ApiProperty({ example: '15:30', description: 'Session end time (HH:mm)' })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+
+  endAt: string; 
+
+  @ApiPropertyOptional({ example: 'UTC', description: 'Timezone for the session' })
+  @IsOptional()
+  @IsString()
+  timezone?: string = 'UTC';
 }
 
 export class SwapRequestsQueryDto extends PaginationDto {

@@ -225,10 +225,10 @@ export class SwapsController {
     return this.swapsService.acceptRequest(user.id, id);
   }
 
-  @Patch('requests/:id/reject')
+  @Patch('requests/:id/decline')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Reject swap request' })
+  @ApiOperation({ summary: 'decline swap request' })
   @ApiParam({ name: 'id', description: 'Swap request id' })
   @ApiOkResponse({
     description: 'Swap request rejected successfully',
@@ -236,14 +236,14 @@ export class SwapsController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Swap request not found' })
-  @ApiForbiddenResponse({ description: 'Only the receiver can reject this request' })
-  @ApiBadRequestResponse({ description: 'Only pending requests can be rejected' })
+  @ApiForbiddenResponse({ description: 'Only the receiver can decline this request' })
+  @ApiBadRequestResponse({ description: 'Only pending requests can be declined' })
   async rejectRequest(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
     @Body() dto: RejectSwapRequestDto,
   ) {
-    return this.swapsService.rejectRequest(user.id, id, dto?.reason);
+    return this.swapsService.declineRequest(user.id, id, dto?.reason);
   }
 
   @Patch('requests/:id/cancel')

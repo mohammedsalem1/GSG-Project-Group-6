@@ -70,8 +70,8 @@ export class SkillsController {
            bio: 'DSAAAAAA',
            receivedSwaps: 0,
            sentSwaps: 0,
-           averageRating:3,
-           totalReviews:5,
+           rating: 3.3,
+           totalFeedback: 1
     },
         }
       },
@@ -137,7 +137,7 @@ export class SkillsController {
         success: true,
         data: {
          skill: {
-             name:'node' , language:'English' , description:'sdadsasd' , 
+            id:"dsa....", name:'node' , language:'English' , description:'sdadsasd' , 
              category: {id:'sdaaaaa' ,name:'web' , icon: ' ' , description:'saaaaa'} ,
          },
          user: {
@@ -148,8 +148,8 @@ export class SkillsController {
            bio: 'DSAAAAAA',
            receivedSwaps: 0,
            sentSwaps: 0,
-           averageRating:3,
-           totalReviews:5,
+           avarage:3,
+           totalFeedbacks:5,
     },
         }
       },

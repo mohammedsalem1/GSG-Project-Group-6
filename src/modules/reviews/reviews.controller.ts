@@ -31,7 +31,6 @@ export class ReviewsController {
                 "reviewerId": "395e7a32-7dc0-483b-b264-f6948a31d6b6",
                 "reviewedId": "686d452f-ddf9-4b60-8164-391517bc0fe7",
                 "userSkillId": "94c37a3f-d6ad-4633-b808-ebb243017348",
-                "overallRating": "FIVE",
                 "comment": "Great session!",
                 "isVerified": true,
                 "isFlagged": false,
@@ -156,7 +155,6 @@ export class ReviewsController {
                     }
                     ],
                     "avgRatingUserSkill": {
-                    "avgSkillRating": 5,
                     "reviewCount": 1
                     },
                     "total": 1,
@@ -169,7 +167,7 @@ export class ReviewsController {
      })
     @ApiNotFoundResponse({ description: 'User skill has no review' })
     @HttpCode(HttpStatus.OK)
-    @ApiQuery({name: 'userSkillId',description: 'userSkillId',required: true})
+    @ApiQuery({ name: 'skillId', description: 'Skill ID to filter reviews', required: true })
     async getUserSkillReviewsReceived(
         @Param('userId') userId:string,
         @Query() query:GetReviewsReceivedDto

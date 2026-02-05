@@ -3,12 +3,14 @@ import { PrismaService } from 'src/database/prisma.service';
 import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
 import { Prisma, Rating } from '@prisma/client';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { FeedbackService } from '../feedback/feedback.service';
 
 
 @Injectable()
 export class SkillsService {
    constructor(
-      private readonly prismaService:PrismaService
+      private readonly prismaService :PrismaService,
+      private readonly feedbackService :FeedbackService
    ) {}
 
    async getAllCategories():Promise<CategoryResponseDto[]> {
@@ -66,33 +68,30 @@ export class SkillsService {
      }),
    ]);
   
-      return {
-         data: usersSkill.map((item) => {
-         const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+             const data: SearchUserSkillResponseDto[] = await Promise.all(
+            usersSkill.map(async (item) => {
+              const { rating, totalFeedbacks } = await this.feedbackService.getUserRating(item.user.id);
 
-         return {
-           skill: item.skill,
-           user: {
-             userName: item.user.userName,
-             image: item.user.image,
-             level:item.level,
-             yearsOfExperience: item.yearsOfExperience,
-             isOffering: item.isOffering,
-             bio: item.user.bio,
-             receivedSwaps: item.user._count.receivedSwaps,
-             sentSwaps: item.user._count.sentSwaps,
-             averageRating,
-             totalReviews,
-    },
-  };
-}),
-
-    ...this.prismaService.formatPaginationResponse({
-      page,
-      count,
-      limit: pagination.take,
-    }),
-  };
+              return {
+                skill: item.skill,
+                user: {
+                  userName: item.user.userName,
+                  image: item.user.image,
+                  level: item.level,
+                  yearsOfExperience: item.yearsOfExperience,
+                  bio: item.user.bio,
+                  receivedSwaps: item.user._count.receivedSwaps,
+                  sentSwaps: item.user._count.sentSwaps,
+                  rating,
+                  totalFeedbacks,
+                },
+              };
+            }),
+          );
+          return {
+              data,
+              ...this.prismaService.formatPaginationResponse({ page,count, limit: pagination.take})
+        };
    }
    async filterSkills(query: FilterSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>> {
 
@@ -122,34 +121,33 @@ export class SkillsService {
 
          this.prismaService.userSkill.count({where: whereClause}) ]);
   
-          return {
-            data: usersSkill.map((item) => {
-            const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived );
+         const data: SearchUserSkillResponseDto[] = await Promise.all(
+            usersSkill.map(async (item) => {
+              const { rating, totalFeedbacks } = await this.feedbackService.getUserRating(item.user.id);
 
-            return {
+              return {
                 skill: item.skill,
                 user: {
                   userName: item.user.userName,
                   image: item.user.image,
-                  level:item.level,
-                  yearsOfExperience:item.yearsOfExperience,
+                  level: item.level,
+                  yearsOfExperience: item.yearsOfExperience,
                   bio: item.user.bio,
                   receivedSwaps: item.user._count.receivedSwaps,
                   sentSwaps: item.user._count.sentSwaps,
-                  averageRating,
-                  totalReviews,
-            },
-          };
-        }),
-
-
-            ...this.prismaService.formatPaginationResponse({
-              page,
-              count,
-              limit: pagination.take,
+                  rating,
+                  totalFeedbacks,
+                },
+              };
             }),
-          };
+          );
+          return {
+              data,
+              ...this.prismaService.formatPaginationResponse({ page,count, limit: pagination.take})
+        };
    }
+
+   
    // TODO getSessions and add in details
    async getUserSkillDetails(skillId: string, userId: string):Promise<UserSkillDetailsResponseDto> {
   
@@ -241,17 +239,17 @@ export class SkillsService {
       ];
 
       const countSessions = sessions.length;
-      const { averageRating, totalReviews } = this.calculateAvgRating(userSkill.user.reviewsReceived);
-
+      const { rating , totalFeedbacks } = await this.feedbackService.getUserRating(userId) ;
   return {
     provider: {
       userName: userSkill.user.userName,
       image: userSkill.user.image,
       bio: userSkill.user.bio,
-      averageRating,
-      totalReviews,
+      rating , 
+      totalFeedbacks
     },
     skill: userSkill.skill,
+
     level: userSkill.level,
     userSkillId:userSkill.id,
     reviews: {
@@ -260,7 +258,6 @@ export class SkillsService {
         ? {
             reviewerName: userSkill.reviews[0].reviewer.userName,
             reviewerImage: userSkill.reviews[0].reviewer.image,
-            overallRating: userSkill.reviews[0].overallRating!,
             comment: userSkill.reviews[0].comment,
           }
         : null,
@@ -297,29 +294,32 @@ export class SkillsService {
 
       const usersSkill = await this.prismaService.userSkill.findMany({
         where: { userId: {  not: userId }, skill: { categoryId: { in: ids}}},
-        select: this.getUserSkillSelect()
+          select: this.getUserSkillSelect()
         })
-      return {
-    data: usersSkill.map((item) => {
-    const { averageRating, totalReviews } = this.calculateAvgRating(item.user.reviewsReceived);
+      const data: SearchUserSkillResponseDto[] = await Promise.all(
+            usersSkill.map(async (item) => {
+              const { rating, totalFeedbacks } = await this.feedbackService.getUserRating(item.user.id);
 
-    return {
-        skill: item.skill,
-        user: {
-           userName: item.user.userName,
-           image: item.user.image,
-           level:item.level,
-           yearsOfExperience:item.yearsOfExperience,
-           bio: item.user.bio,
-           receivedSwaps: item.user._count.receivedSwaps,
-           sentSwaps: item.user._count.sentSwaps,
-           averageRating,
-           totalReviews,
-    },
-  };
-}),
- }}
-
+              return {
+                skill: item.skill,
+                user: {
+                  userName: item.user.userName,
+                  image: item.user.image,
+                  level: item.level,
+                  yearsOfExperience: item.yearsOfExperience,
+                  bio: item.user.bio,
+                  receivedSwaps: item.user._count.receivedSwaps,
+                  sentSwaps: item.user._count.sentSwaps,
+                  rating,
+                  totalFeedbacks,
+                },
+              };
+            }),
+          );
+          return {
+              data,
+          }
+  }
 
   async getUserCategories(userId: string) {
     const user = await this.prismaService.user.findUnique({
@@ -341,19 +341,15 @@ export class SkillsService {
           level:true,
           yearsOfExperience: true,
           isOffering: true,
-          skill: {select: {name:true , language:true , description:true , 
+          skill: {select: {id:true ,name:true , language:true , description:true , 
              category: {select:{id:true ,name:true , icon:true , description:true}}}} ,
           user : {
             select : {
+              id:true,
               userName: true , 
               image: true , 
               bio: true ,
               availability: true,
-              reviewsReceived: {
-                 select: {
-                  overallRating: true,
-                },
-               }, 
               _count: {
                 select: {
                   receivedSwaps: true,

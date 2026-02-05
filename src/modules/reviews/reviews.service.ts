@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { session } from 'passport';
-import { Rating } from '@prisma/client';
+import { Rating, SessionStatus } from '@prisma/client';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { GetReviewsReceivedDto } from './dto/get-review-received.dto';
 import { calculateAvgRating } from 'src/common/utils/rating.utils';
@@ -22,12 +22,12 @@ export class ReviewsService {
           throw new BadRequestException('the swapRequest is not found')
        }
 
-       if (!swapRequest.session  || swapRequest.session!.status !== 'COMPLETED' ) {
+       if (!swapRequest.session  || swapRequest.session!.status !== SessionStatus.COMPLETED ) {
           throw new BadRequestException("you don't review because the session is not completed")
        }
     
        if (swapRequest.requesterId !== reviewerId && swapRequest.receiverId !== reviewerId) {
-            throw new ForbiddenException('You are not part of this swap');
+            throw new ForbiddenException('You are not part of this session');
          }
 
         const existingReview = await this.prismaService.review.findFirst({
@@ -36,7 +36,7 @@ export class ReviewsService {
         });
 
         if (existingReview) {
-              throw new BadRequestException('You already reviewed this swap');
+              throw new BadRequestException('You already reviewed this session');
           } 
        
        const reviewedId = swapRequest.requesterId === reviewerId ? swapRequest.receiverId : swapRequest.requesterId
@@ -49,8 +49,8 @@ export class ReviewsService {
                 reviewedId,
                 reviewerId,
                 userSkillId,
-                overallRating:this.numberToRating(createReviewDto.overallRating),
                 comment: createReviewDto.comment? createReviewDto.comment:null ,
+                isPublic: createReviewDto.isPublic ?? true,
             } , 
               include: {
                reviewer: {
@@ -80,10 +80,14 @@ export class ReviewsService {
    //  }
     async getUserSkillReviewsReceived(userId:string , query:GetReviewsReceivedDto) {
         // check userSkill is exist 
-        const existUserSkill = await this.prismaService.userSkill.findUnique({where:{id:query.userSkillId}})
-
-        if (!existUserSkill) {
-           throw new NotFoundException('the user Skill not found')
+        const userSkill = await this.prismaService.userSkill.findFirst({
+            where: {
+               userId,
+               skillId: query.skillId,
+            },
+         });
+        if (!userSkill) {
+           throw new NotFoundException('User does not have this skill')
         }
         const pagination = this.prismaService.handleQueryPagination({
            page: query.page,
@@ -96,13 +100,13 @@ export class ReviewsService {
           ...removePage,
          where: {
             reviewedId:userId,
-            userSkillId:query.userSkillId,
-            isVerified:true
+            userSkillId:userSkill.id, 
+            isVerified:true,
+            isPublic: true,
          },
          select: {
             id:true,
             comment:true , 
-            overallRating:true,
             reviewer:{
                select: {
                   id:true,
@@ -120,20 +124,21 @@ export class ReviewsService {
               createdAt: 'desc',
          },
         })
-        const count  = await this.prismaService.review.count({where:{  
+        const count  = await this.prismaService.review.count({
+         where:{  
             reviewedId:userId,
-            userSkillId:query.userSkillId,
-            isVerified:true}})
-        const ratingsArray = reviewsForSkill.map(r => ({
-             overallRating: this.ratingToNumber(r.overallRating!),
-         }));
+            userSkillId:userSkill.id,
+            isVerified:true,
+            isPublic: true
+         }})
 
-        const avgRatingUserSkill = calculateAvgRating(ratingsArray)
-        console.log(avgRatingUserSkill);
+
+      //   const avgRatingUserSkill = calculateAvgRating(ratingsArray)
+      //   console.log(avgRatingUserSkill);
 
         return {
             review:reviewsForSkill , 
-            avgRatingUserSkill,
+            // avgRatingUserSkill,
             ...this.prismaService.formatPaginationResponse({ page,count, limit: pagination.take})
          };
     }
@@ -147,11 +152,10 @@ export class ReviewsService {
       const { page, ...removePage } = pagination;
       const reviews = await this.prismaService.review.findMany({ 
          ...removePage,
-         where: { reviewedId:userId },
+         where: { reviewedId: userId, isPublic: true, isVerified: true, },
          select:{
             id:true,
             comment:true , 
-            overallRating:true,
             reviewer:{
                select:{id:true, userName:true, image: true , bio:true}
             },
@@ -205,24 +209,24 @@ export class ReviewsService {
       return { message: 'Review flagged successfully' };
 }
 
-    private  numberToRating = (value: number): Rating => {
-      const ratingMap: Record<number, Rating> = {
-        1: Rating.ONE,
-        2: Rating.TWO,
-        3: Rating.THREE,
-        4: Rating.FOUR,
-        5: Rating.FIVE,
-    };
-       return ratingMap[value] || 0;
-  };
-    private ratingToNumber = (rating: string): number => {
-          const ratingMap: Record<string, number> = {
-             ONE: 1,
-             TWO: 2,
-             THREE: 3,
-             FOUR: 4,
-             FIVE: 5,
-      };
-      return ratingMap[rating] || 0;
-    };
+//     private  numberToRating = (value: number): Rating => {
+//       const ratingMap: Record<number, Rating> = {
+//         1: Rating.ONE,
+//         2: Rating.TWO,
+//         3: Rating.THREE,
+//         4: Rating.FOUR,
+//         5: Rating.FIVE,
+//     };
+//        return ratingMap[value] || 0;
+//   };
+//     private ratingToNumber = (rating: string): number => {
+//           const ratingMap: Record<string, number> = {
+//              ONE: 1,
+//              TWO: 2,
+//              THREE: 3,
+//              FOUR: 4,
+//              FIVE: 5,
+//       };
+//       return ratingMap[rating] || 0;
+//     };
 }

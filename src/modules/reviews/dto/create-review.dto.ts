@@ -6,16 +6,12 @@ export class CreateReviewDto {
   @IsUUID()
   swapRequestId: string;
 
-  @ApiProperty({ example: 5 })
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  overallRating: number;
-
-
-
   @ApiPropertyOptional({ example: 'Great session!' })
   @IsOptional()
   @IsString()
   comment?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Set review as public or private' })
+  @IsOptional()
+  isPublic?: boolean;
 }

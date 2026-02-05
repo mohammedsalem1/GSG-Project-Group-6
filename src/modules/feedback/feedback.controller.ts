@@ -1,5 +1,5 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { FeedbackService } from './feedback.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -53,5 +53,24 @@ export class FeedbackController {
         ) {
             return await this.feedbackService.createFeedback(createFeedbackDto , user.id)
         }
-    
+
+
+        @Get('rating/:userId')
+        @UseGuards(JwtAuthGuard)
+        @ApiBearerAuth('JWT-auth')
+        @ApiOperation({ summary: 'Get profile rating for a user' })
+        @ApiOkResponse({
+            schema: {
+            example: {
+                success: true,
+                data: {
+                    rating: 3.2,
+                    totalReviewers: 5,
+                },
+            },
+            },
+        })
+         async getUserRating(@Param('userId') userId: string) {
+          return await this.feedbackService.getUserRating(userId);
+         }
 }

@@ -12,14 +12,13 @@ export class FeedbackService {
            // check the session is exist
            const session = await this.prismaService.session.findUnique({
             where:{id:createFeedbackDto.sessionId},
-            include:{feedbacks:true},
            })
     
            if (!session) {
               throw new BadRequestException('the session is not found')
            }
     
-           if (!session  || session.status !== SessionStatus.COMPLETED ) {
+           if (session.status !== SessionStatus.COMPLETED ) {
               throw new BadRequestException("you don't feedback because the session is not completed")
            }
         
@@ -33,27 +32,64 @@ export class FeedbackService {
             });
     
             if (existingFeedback) {
-                  throw new BadRequestException('You already feedback this session');
+                  throw new BadRequestException('You already gave feedback for this session');
               } 
            
            const receiverId = session.hostId === giverId ? session.attendeeId : session.hostId;
-          
+           const { sessionId, ...feedbackFields } = createFeedbackDto;
+
             return await this.prismaService.feedback.create({
                 data :{
                     sessionId:createFeedbackDto.sessionId,
                     receiverId,
                     giverId,
-                    sessionFocus:createFeedbackDto.sessionFocus ?? null,
-                    activeParticipation: createFeedbackDto.activeParticipation ?? null,
-                    learningFocus: createFeedbackDto.learningFocus ?? null,
-                    clarity: createFeedbackDto.clarity ?? null,
-                    patience: createFeedbackDto.patience ?? null,
-                    sessionStructure: createFeedbackDto.sessionStructure ?? null,
-                    communication: createFeedbackDto.communication ?? null,
-                    strengths: createFeedbackDto.strengths ?? null,
-                    improvements: createFeedbackDto.improvements ?? null,
+                    ...feedbackFields
                 }
             })
     
-        }
+     }
+
+    async getUserRating(userId: string): Promise<{ rating: number; totalFeedbacks: number }> {
+         const feedbacks = await this.prismaService.feedback.findMany({
+            where: {
+              receiverId: userId,
+            },
+         });
+
+         if (feedbacks.length === 0) {
+            return {
+              rating: 0,
+              totalFeedbacks: 0,
+            };
+         }
+         console.log(feedbacks)
+         const sessionRatings = feedbacks.map(feedback => {
+                     const scores = [
+                        feedback.sessionFocus,
+                        feedback.activeParticipation,
+                        feedback.learningFocus,
+                        feedback.clarity,
+                        feedback.patience,
+                        feedback.sessionStructure,
+                        feedback.communication,
+                        
+                     ].filter((v): v is number => typeof v === 'number');
+
+                     if (scores.length === 0) return null;
+
+                     const sum = scores.reduce((a, b) => a + b, 0);
+                     return sum / scores.length;
+                  }).filter((v): v is number => v !== null);
+           if (sessionRatings.length === 0) {
+               return {
+                  rating: 0,
+                  totalFeedbacks: 0,
+               };
+            }
+         const finalRating = sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length;
+         return {  
+             rating: Number(finalRating.toFixed(1)),
+             totalFeedbacks: sessionRatings.length ?? 0
+          };
+    } 
 }

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsString,
   Matches,
@@ -46,6 +47,10 @@ export class VerifyEmailDto {
   token: string;
 }
 
+export enum OtpType {
+  VERIFY_EMAIL = 'VERIFY_EMAIL',
+  RESET_PASSWORD = 'RESET_PASSWORD',
+}
 export class VerifyOtpDto {
   @ApiProperty({ example: 'mohammed@gmail.com' })
   @IsNotEmpty()
@@ -56,6 +61,16 @@ export class VerifyOtpDto {
   @IsNotEmpty()
   @IsString()
   otpCode: string;
+   
+  @ApiProperty({
+    example: OtpType.VERIFY_EMAIL,
+    description: `Type of OTP. Allowed values:
+         - VERIFY_EMAIL
+         - RESET_PASSWORD`,
+   })
+  @IsEnum(OtpType)
+  @IsNotEmpty()
+  type: OtpType;
 }
 export class ForgotPasswordDto {
   @ApiProperty({ example: 'mohammed@gmail.com' })
@@ -70,10 +85,6 @@ export class ResetPasswordDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: '654328' })
-  @IsNotEmpty()
-  @IsString()
-  otpCode: string;
 
   @ApiProperty({ example: 'P@ssw0rd!' })
   @IsNotEmpty()
@@ -82,7 +93,12 @@ export class ResetPasswordDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
     message: 'Password too weak',
   })
-  newPassword: string;
+  password: string;
+
+  @ApiProperty({ example: 'P@ssw0rd!', writeOnly: true })
+  @IsNotEmpty()
+  @IsString()
+  confirmPassword: string;
 }
 
 export class RefreshTokenDto {

@@ -48,8 +48,9 @@ async function bootstrap() {
     .addTag('skills', 'Skills and discovery endpoints')
     .addTag('swaps', 'Swap request management')
     .addTag('chat', 'Real-time messaging')
-    .addTag('scheduling', 'Session scheduling')
+    .addTag('sessions', 'Session scheduling')
     .addTag('reviews', 'Reviews and ratings')
+    .addTag('feedbacks', 'feedbacks panel endpoints')
     .addTag('gamification', 'Badges and points')
     .addTag('admin', 'Admin panel endpoints')
     .addBearerAuth(

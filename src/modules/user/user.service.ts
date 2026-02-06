@@ -377,7 +377,7 @@ export class UserService {
 
     // Calculate average rating from overall ratings
     const overallRatings = user.reviewsReceived.map((r) =>
-      ratingToNumber(r.overallRating),
+      ratingToNumber(r.overallRating?? ''),
     );
     const averageRating =
       overallRatings.length > 0

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FeedbackCategory } from '@prisma/client';
-import { IsInt, IsOptional, IsUUID, Max, Min, IsString, IsEnum } from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Max, Min, IsString, IsEnum, IsBoolean } from 'class-validator';
 
 export class CreateFeedbackDto {
   @ApiProperty({ 
@@ -17,6 +17,14 @@ export class CreateFeedbackDto {
   })
   @IsEnum(FeedbackCategory)
   role: FeedbackCategory;
+  
+
+  @ApiPropertyOptional({
+    description: 'Did the user show up on time?',
+  })
+  @IsOptional()
+  @IsBoolean()
+  onTime?: boolean;
 
   @ApiPropertyOptional({ 
     description: 'Only for TEACHING role: How focused the teacher was during the session. Scale 1-5.'
@@ -44,6 +52,16 @@ export class CreateFeedbackDto {
   @Max(5)
   @IsOptional()
   learningFocus?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Only for TEACHING role: How open the user was to feedback. Scale 1-5.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  openToFeedback?: number;
 
   @ApiPropertyOptional({ 
     description: 'Only for LEARNING role: Clarity of the learner. Scale 1-5.'

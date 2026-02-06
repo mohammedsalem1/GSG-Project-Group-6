@@ -344,6 +344,8 @@ model Feedback {
   // ── Teaching-related ──
   sessionFocus        Int?   // where they focused the whole session
   activeParticipation Int?   // actively participation
+  openToFeedback      Int?
+
 
   // ── Learning-related ──
   learningFocus       Int?
@@ -353,6 +355,7 @@ model Feedback {
 
   // ── Shared ──
   communication       Int?
+  onTime              Boolean?
 
   strengths     String?
   improvements  String?

@@ -65,6 +65,7 @@ export class FeedbackService {
          console.log(feedbacks)
          const sessionRatings = feedbacks.map(feedback => {
                      const scores = [
+                        feedback.onTime !== undefined ? (feedback.onTime ? 5 : 1) : undefined,
                         feedback.sessionFocus,
                         feedback.activeParticipation,
                         feedback.learningFocus,
@@ -72,6 +73,7 @@ export class FeedbackService {
                         feedback.patience,
                         feedback.sessionStructure,
                         feedback.communication,
+                        feedback.openToFeedback,
                         
                      ].filter((v): v is number => typeof v === 'number');
 

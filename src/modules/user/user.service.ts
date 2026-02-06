@@ -63,40 +63,37 @@ export class UserService {
       },
     });
   }
-  async updateUserSelectedCategories(
-  userId: string,
-  selectedCatIds: string[],
-) {
-  const uniqueIds = [...new Set(selectedCatIds)];
-  const categories = await this.prismaService.category.findMany({
-    where: {
-      id: { in: uniqueIds },
-    },
-    select: { id: true },
-  });
+  async updateUserSelectedCategories(userId: string, selectedCatIds: string[]) {
+    const uniqueIds = [...new Set(selectedCatIds)];
+    const categories = await this.prismaService.category.findMany({
+      where: {
+        id: { in: uniqueIds },
+      },
+      select: { id: true },
+    });
 
-  if (categories.length !== uniqueIds.length) {
-    const foundIds = new Set(categories.map(c => c.id));
-    const notFoundIds = uniqueIds.filter(id => !foundIds.has(id));
+    if (categories.length !== uniqueIds.length) {
+      const foundIds = new Set(categories.map((c) => c.id));
+      const notFoundIds = uniqueIds.filter((id) => !foundIds.has(id));
 
-    throw new BadRequestException({
-      message: 'Some category IDs were not found',
-      notFoundIds,
+      throw new BadRequestException({
+        message: 'Some category IDs were not found',
+        notFoundIds,
+      });
+    }
+
+    return this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        selectedCatIds: uniqueIds.join(','),
+      },
+      select: {
+        id: true,
+        userName: true,
+        selectedCatIds: true,
+      },
     });
   }
-
-  return this.prismaService.user.update({
-    where: { id: userId },
-    data: {
-      selectedCatIds: uniqueIds.join(','),
-    },
-    select: {
-      id:true , 
-      userName:true,
-      selectedCatIds:true
-    }
-  });
- }
 
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({
@@ -339,10 +336,16 @@ export class UserService {
           },
         },
 
-        // Include reviews received (for calculating rating)
-        reviewsReceived: {
+        // Include feedbacks received (for calculating rating)
+        feedbackReceived: {
           select: {
-            overallRating: true,
+            sessionFocus: true,
+            activeParticipation: true,
+            learningFocus: true,
+            clarity: true,
+            patience: true,
+            sessionStructure: true,
+            communication: true,
           },
         },
 
@@ -363,35 +366,37 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    // Convert Rating enum to number
-    const ratingToNumber = (rating: any): number => {
-      const ratingMap: Record<string, number> = {
-        ONE: 1,
-        TWO: 2,
-        THREE: 3,
-        FOUR: 4,
-        FIVE: 5,
-      };
-      return ratingMap[rating] || 0;
-    };
+    // Calculate average rating from feedback
+    let totalRating = 0;
+    let ratingCount = 0;
 
-    // Calculate average rating from overall ratings
-    const overallRatings = user.reviewsReceived.map((r) =>
-      ratingToNumber(r.overallRating?? ''),
-    );
-    const averageRating =
-      overallRatings.length > 0
-        ? overallRatings.reduce((sum, rating) => sum + rating, 0) /
-          overallRatings.length
-        : 0;
+    user.feedbackReceived.forEach((feedback) => {
+      // Collect all non-null rating fields
+      const ratings = [
+        feedback.sessionFocus,
+        feedback.activeParticipation,
+        feedback.learningFocus,
+        feedback.clarity,
+        feedback.patience,
+        feedback.sessionStructure,
+        feedback.communication,
+      ].filter((rating) => rating !== null); // Only count non-null ratings
 
-    // Remove reviewsReceived array, return only the average
-    const { reviewsReceived, ...userWithoutReviews } = user;
+      ratings.forEach((rating) => {
+        totalRating += rating;
+        ratingCount++;
+      });
+    });
+
+    const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
+
+    // Remove feedbackReceived array, return only the average
+    const { feedbackReceived, ...userWithoutFeedback } = user;
 
     return {
-      ...userWithoutReviews,
+      ...userWithoutFeedback,
       averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
-      totalReviews: overallRatings.length,
+      totalFeedbacks: user.feedbackReceived.length,
     };
   }
 

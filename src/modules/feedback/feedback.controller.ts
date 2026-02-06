@@ -64,8 +64,11 @@ export class FeedbackController {
             example: {
                 success: true,
                 data: {
-                    rating: 3.2,
-                    totalReviewers: 5,
+                        reciverId: "f97c5280-bcb2-4f66-8d79-dc77dae3c8e1",
+                        reciverName: "mohammed",
+                        reciverImage: "",
+                        rating: 2.8,
+                        totalFeedbacks: 1
                 },
             },
             },

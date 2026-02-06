@@ -49,8 +49,12 @@ export class FeedbackService {
     
      }
 
-    async getUserRating(userId: string): Promise<{ rating: number; totalFeedbacks: number }> {
-         const feedbacks = await this.prismaService.feedback.findMany({
+    async getUserRating(userId: string): Promise<{ rating: number; totalFeedbacks: number,reciverId:string,reciverName:string,reciverImage:string }> {
+      const user = await this.prismaService.user.findUnique({where:{id:userId}})   
+      if (!user) {
+          throw new BadRequestException('the user is not found')
+      }
+      const feedbacks = await this.prismaService.feedback.findMany({
             where: {
               receiverId: userId,
             },
@@ -58,6 +62,9 @@ export class FeedbackService {
 
          if (feedbacks.length === 0) {
             return {
+              reciverId:user.id,
+              reciverName:user.userName,
+              reciverImage:user.image ?? '',
               rating: 0,
               totalFeedbacks: 0,
             };
@@ -84,12 +91,18 @@ export class FeedbackService {
                   }).filter((v): v is number => v !== null);
            if (sessionRatings.length === 0) {
                return {
+                  reciverId:user.id,
+                  reciverName:user.userName,
+                  reciverImage:user.image ?? '',
                   rating: 0,
                   totalFeedbacks: 0,
                };
             }
          const finalRating = sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length;
          return {  
+             reciverId:user.id,
+             reciverName:user.userName,
+             reciverImage:user.image ?? '',
              rating: Number(finalRating.toFixed(1)),
              totalFeedbacks: sessionRatings.length ?? 0
           };

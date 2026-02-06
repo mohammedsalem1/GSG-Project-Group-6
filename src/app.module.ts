@@ -9,7 +9,6 @@ import { UserModule } from './modules/user/user.module';
 import { SkillsModule } from './modules/skills/skills.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
-import { AdminModule } from './modules/admin/admin.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 import { ScheduleModule } from '@nestjs/schedule';

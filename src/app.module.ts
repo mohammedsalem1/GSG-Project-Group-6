@@ -11,6 +11,7 @@ import { SwapsModule } from './modules/swaps/swaps.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SessionModule } from './modules/session/session.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     UserModule,
     SkillsModule,
     SwapsModule,
+    SessionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

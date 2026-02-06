@@ -1,6 +1,21 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { NotificationType, SwapStatus } from '@prisma/client';
+import {
+  CommunicationType,
+  NotificationType,
+  SessionStatus,
+  SwapStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { CreateSwapRequestDto, SwapRequestsQueryDto } from './dto/swaps.dto';
@@ -10,12 +25,11 @@ export class SwapsService {
   constructor(private readonly prismaService: PrismaService) {}
   private readonly logger = new Logger(SwapsService.name);
 
-  async createSwapRequest(
-    requesterId: string,
-    dto: CreateSwapRequestDto,
-  ) {
+  async createSwapRequest(requesterId: string, dto: CreateSwapRequestDto) {
     if (requesterId === dto.receiverId) {
-      throw new BadRequestException('You cannot send a swap request to yourself');
+      throw new BadRequestException(
+        'You cannot send a swap request to yourself',
+      );
     }
 
     const [offeredUserSkill, requestedUserSkill] = await Promise.all([
@@ -36,9 +50,7 @@ export class SwapsService {
     ]);
 
     if (!offeredUserSkill) {
-      throw new BadRequestException(
-        'You do not offer the selected skill',
-      );
+      throw new BadRequestException('You do not offer the selected skill');
     }
 
     if (!requestedUserSkill) {
@@ -65,8 +77,12 @@ export class SwapsService {
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     const dateOnly = new Date(`${dto.date}T00:00:00.000Z`);
-    const startAt = new Date(`${dto.date}T${dto.startAt}:00${dto.timezone === 'UTC' ? 'Z' : ''}`);
-    const endAt   = new Date(`${dto.date}T${dto.endAt}:00${dto.timezone === 'UTC' ? 'Z' : ''}`);
+    const startAt = new Date(
+      `${dto.date}T${dto.startAt}:00${dto.timezone === 'UTC' ? 'Z' : ''}`,
+    );
+    const endAt = new Date(
+      `${dto.date}T${dto.endAt}:00${dto.timezone === 'UTC' ? 'Z' : ''}`,
+    );
 
     const swapRequest = await this.prismaService.swapRequest.create({
       data: {
@@ -317,7 +333,9 @@ export class SwapsService {
     }
 
     if (request.requesterId !== userId && request.receiverId !== userId) {
-      throw new ForbiddenException('You are not allowed to access this request');
+      throw new ForbiddenException(
+        'You are not allowed to access this request',
+      );
     }
 
     return request;
@@ -326,6 +344,20 @@ export class SwapsService {
   async acceptRequest(userId: string, requestId: string) {
     const request = await this.prismaService.swapRequest.findUnique({
       where: { id: requestId },
+      include: {
+        requester: true,
+        receiver: true,
+        offeredUserSkill: {
+          include: {
+            skill: true,
+          },
+        },
+        requestedUserSkill: {
+          include: {
+            skill: true,
+          },
+        },
+      },
     });
 
     if (!request) {
@@ -340,22 +372,92 @@ export class SwapsService {
       throw new BadRequestException('Only pending requests can be accepted');
     }
 
-    const updated = await this.prismaService.swapRequest.update({
-      where: { id: requestId },
-      data: { status: SwapStatus.ACCEPTED },
+    // Validate session time is provided
+    if (!request.date || !request.startAt || !request.endAt) {
+      throw new BadRequestException(
+        'Session time must be provided in the swap request',
+      );
+    }
+
+    // Calculate duration in minutes
+    const startTime = new Date(request.startAt);
+    const endTime = new Date(request.endAt);
+    const durationMinutes = Math.floor(
+      (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+    );
+
+    if (durationMinutes <= 0) {
+      throw new BadRequestException('Invalid session duration');
+    }
+
+    // Use transaction to create everything atomically
+    const result = await this.prismaService.$transaction(async (prisma) => {
+      // 1. Update swap request status
+      const updated = await prisma.swapRequest.update({
+        where: { id: requestId },
+        data: { status: SwapStatus.ACCEPTED },
+      });
+
+      // 2. Create conversation
+      const conversation = await prisma.conversation.create({
+        data: {
+          user1Id: request.requesterId,
+          user2Id: request.receiverId,
+          swapRequestId: request.id,
+        },
+      });
+
+      // 3. Create session
+      const session = await prisma.session.create({
+        data: {
+          swapRequestId: request.id,
+          conversationId: conversation.id,
+          hostId: request.requesterId, // Requester is host
+          attendeeId: request.receiverId, // Receiver is attendee
+          skillId: request.requestedUserSkill.skillId, // Main skill being taught
+          title: `${request.requestedUserSkill.skill.name} Session`,
+          description: `Learning ${request.requestedUserSkill.skill.name} from ${request.requester.userName}`,
+          scheduledAt: request.startAt,
+          endsAt: request.endAt,
+          duration: durationMinutes,
+          communication: CommunicationType.TEXT_CHAT, // Default, can be changed later
+          status: SessionStatus.SCHEDULED,
+        },
+      });
+
+      return { updated, conversation, session };
     });
 
-    await this.prismaService.notification.create({
-      data: {
-        userId: request.requesterId,
-        type: NotificationType.SWAP_ACCEPTED,
-        title: 'Swap request accepted',
-        message: 'Your swap request has been accepted',
-        data: { swapRequestId: updated.id },
-      },
-    });
+    // 4. Send notifications
+    await Promise.all([
+      this.prismaService.notification.create({
+        data: {
+          userId: request.requesterId,
+          type: NotificationType.SWAP_ACCEPTED,
+          title: 'Swap request accepted',
+          message: 'Your swap request has been accepted',
+          data: {
+            swapRequestId: result.updated.id,
+            sessionId: result.session.id,
+          },
+        },
+      }),
+      this.prismaService.notification.create({
+        data: {
+          userId: request.receiverId,
+          type: NotificationType.SYSTEM,
+          title: 'Session scheduled',
+          message: `Your session is scheduled for ${new Date(request.startAt).toLocaleString()}`,
+          data: { sessionId: result.session.id },
+        },
+      }),
+    ]);
 
-    return updated;
+    return {
+      ...result.updated,
+      conversation: result.conversation,
+      session: result.session,
+    };
   }
 
   async declineRequest(userId: string, requestId: string, reason?: string) {
@@ -408,7 +510,9 @@ export class SwapsService {
     }
 
     if (request.requesterId !== userId) {
-      throw new ForbiddenException('Only the requester can cancel this request');
+      throw new ForbiddenException(
+        'Only the requester can cancel this request',
+      );
     }
 
     if (

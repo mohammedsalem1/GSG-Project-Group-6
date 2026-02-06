@@ -13,6 +13,7 @@ import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SwapsModule } from './modules/swaps/swaps.module';
+import { SessionModule } from './modules/session/session.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { SwapsModule } from './modules/swaps/swaps.module';
     SwapsModule,
     ReviewsModule,
     FeedbackModule,
+    SessionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

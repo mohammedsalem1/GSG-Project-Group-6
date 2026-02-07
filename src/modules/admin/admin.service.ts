@@ -198,7 +198,7 @@ export class AdminService {
   /**
    * Export sessions as CSV
    */
-  async exportSessions(sessionIds: string[]): Promise<string> {
+  async exportSessions(sessionIds: string[]) {
     return await this.sessionService.exportSessionsAsCSV(sessionIds);
   }
 }

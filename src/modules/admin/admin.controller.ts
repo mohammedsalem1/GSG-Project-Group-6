@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -46,7 +47,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 import type { RequestUser } from 'src/common/types/user.types';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('admin')
@@ -238,8 +239,11 @@ export class AdminController {
       },
     },
   })
-  async exportSwaps(@Body() dto: AdminSwapExportDto): Promise<unknown> {
-    return await this.adminService.exportSwaps(dto.swapIds);
+  async exportSwaps(@Body() dto: AdminSwapExportDto, @Res() res: Response) {
+    const file = await this.adminService.exportSwaps(dto.swapIds);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="swaps.csv"');
+    res.send(file);
   }
 
   @Get('audit')
@@ -338,8 +342,14 @@ export class AdminController {
       },
     },
   })
-  async exportSessions(@Body() dto: AdminSessionExportDto): Promise<unknown> {
+  async exportSessions(
+    @Body() dto: AdminSessionExportDto,
+    @Res() res: Response,
+  ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    return await this.adminService.exportSessions(dto.sessionIds);
+    const file = await this.adminService.exportSessions(dto.sessionIds);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="swaps.csv"');
+    res.send(file);
   }
 }

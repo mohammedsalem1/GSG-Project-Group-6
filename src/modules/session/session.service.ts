@@ -456,7 +456,6 @@ export class SessionService {
   ): Promise<{ week: number; requests: number; sessions: number }[]> {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 1);
-    const daysInMonth = new Date(year, month, 0).getDate();
 
     const [requests, sessions] = await Promise.all([
       this.prismaService.swapRequest.findMany({
@@ -627,7 +626,7 @@ export class SessionService {
   /**
    * Export sessions as CSV
    */
-  async exportSessionsAsCSV(sessionIds: string[]): Promise<string> {
+  async exportSessionsAsCSV(sessionIds: string[]) {
     const sessions = await this.prismaService.session.findMany({
       where: {
         id: { in: sessionIds },
@@ -685,6 +684,6 @@ export class SessionService {
       ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
     ].join('\n');
 
-    return csvContent;
+    return Buffer.from(csvContent, 'utf-8');
   }
 }

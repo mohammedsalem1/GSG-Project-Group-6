@@ -92,11 +92,11 @@ export class ProviderDto {
 
   @ApiProperty()
   @IsNumber()
-  averageRating: number;
+  rating: number;
 
   @ApiProperty()
   @IsNumber()
-  totalReviews: number;
+  totalFeedbacks: number | undefined ;
 }
 
 
@@ -114,9 +114,7 @@ export class LatestReviewDto {
   @IsOptional()
   @IsString()
   comment: string | null;
-   
-  @ApiProperty()
-  overallRating: string | null
+  
 
 }
 
@@ -228,11 +226,11 @@ export class ProviderWithSwapsDto {
 
   @ApiProperty()
   @IsNumber()
-  averageRating: number;
+  rating: number;
 
   @ApiProperty()
   @IsNumber()
-  totalReviews: number;
+  totalFeedbacks: number;
 }
 
 

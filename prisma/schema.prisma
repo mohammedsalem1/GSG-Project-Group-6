@@ -132,9 +132,9 @@ model User {
   reviewsGiven Review[] @relation("Reviewer")
   reviewsReceived Review[] @relation("Reviewed")
 
-
   feedbackGiven   Feedback[] @relation("FeedbackGiver")
   feedbackReceived Feedback[] @relation("FeedbackReceiver")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -344,6 +344,8 @@ model Feedback {
   // ── Teaching-related ──
   sessionFocus        Int?   // where they focused the whole session
   activeParticipation Int?   // actively participation
+  openToFeedback      Int?
+
 
   // ── Learning-related ──
   learningFocus       Int?
@@ -353,6 +355,7 @@ model Feedback {
 
   // ── Shared ──
   communication       Int?
+  onTime              Boolean?
 
   strengths     String?
   improvements  String?
@@ -367,7 +370,6 @@ enum FeedbackCategory {
   LEARNING
   GENERAL
 }
-
 
 model Badge {
   id          String         @id @default(uuid())

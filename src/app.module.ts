@@ -7,10 +7,12 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { SkillsModule } from './modules/skills/skills.module';
-import { SwapsModule } from './modules/swaps/swaps.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 import jwtConfig from './config/jwt.config';
 import imagekitConfig from './config/imagekit.config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SwapsModule } from './modules/swaps/swaps.module';
 import { SessionModule } from './modules/session/session.module';
 
 @Module({
@@ -26,6 +28,8 @@ import { SessionModule } from './modules/session/session.module';
     UserModule,
     SkillsModule,
     SwapsModule,
+    ReviewsModule,
+    FeedbackModule,
     SessionModule,
   ],
   controllers: [AppController],

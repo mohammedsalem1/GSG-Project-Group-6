@@ -50,6 +50,7 @@ async function bootstrap() {
     .addTag('chat', 'Real-time messaging')
     .addTag('sessions', 'Session scheduling')
     .addTag('reviews', 'Reviews and ratings')
+    .addTag('feedbacks', 'feedbacks panel endpoints')
     .addTag('gamification', 'Badges and points')
     .addTag('admin', 'Admin panel endpoints')
     .addBearerAuth(

@@ -12,11 +12,11 @@ import {
 import { Type } from 'class-transformer';
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'mohammed' })
-  @IsNotEmpty()
-  @IsString()
-  @MinLength(3)
-  userName: string;
+  // @ApiProperty({ example: 'mohammed' })
+  // @IsNotEmpty()
+  // @IsString()
+  // @MinLength(3)
+  // userName: string;
 
   @ApiProperty({ example: 'user@gmail.com' })
   @IsNotEmpty()

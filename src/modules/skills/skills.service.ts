@@ -75,7 +75,7 @@ export class SkillsService {
               return {
                 skill: item.skill,
                 user: {
-                  userName: item.user.userName,
+                  userName: item.user.userName ?? '',
                   image: item.user.image,
                   level: item.level,
                   yearsOfExperience: item.yearsOfExperience,
@@ -128,7 +128,7 @@ export class SkillsService {
               return {
                 skill: item.skill,
                 user: {
-                  userName: item.user.userName,
+                  userName: item.user.userName ?? '',
                   image: item.user.image,
                   level: item.level,
                   yearsOfExperience: item.yearsOfExperience,
@@ -242,7 +242,7 @@ export class SkillsService {
       const { rating , totalFeedbacks } = await this.feedbackService.getUserRating(userId) ;
   return {
     provider: {
-      userName: userSkill.user.userName,
+      userName: userSkill.user.userName ?? '',
       image: userSkill.user.image,
       bio: userSkill.user.bio,
       rating , 
@@ -256,7 +256,7 @@ export class SkillsService {
       count: userSkill._count.reviews,
       LatestReviewDto: userSkill.reviews[0]
         ? {
-            reviewerName: userSkill.reviews[0].reviewer.userName,
+            reviewerName: userSkill.reviews[0].reviewer.userName ?? '',
             reviewerImage: userSkill.reviews[0].reviewer.image,
             comment: userSkill.reviews[0].comment,
           }
@@ -303,7 +303,7 @@ export class SkillsService {
               return {
                 skill: item.skill,
                 user: {
-                  userName: item.user.userName,
+                  userName: item.user.userName ?? '',
                   image: item.user.image,
                   level: item.level,
                   yearsOfExperience: item.yearsOfExperience,

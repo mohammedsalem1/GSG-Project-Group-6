@@ -99,7 +99,7 @@ enum TokenType {
 
 model User {
   id            String        @id @default(uuid())
-  userName      String        @unique
+  userName      String?        @unique
   email         String        @unique
   password      String
   phoneNumber   String?

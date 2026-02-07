@@ -78,7 +78,7 @@ export class FeedbackService {
     if (feedbacks.length === 0) {
       return {
         reciverId: user.id,
-        reciverName: user.userName,
+        reciverName: user.userName ?? '',
         reciverImage: user.image ?? '',
         rating: 0,
         totalFeedbacks: 0,
@@ -108,7 +108,7 @@ export class FeedbackService {
     if (sessionRatings.length === 0) {
       return {
         reciverId: user.id,
-        reciverName: user.userName,
+        reciverName: user.userName ?? '',
         reciverImage: user.image ?? '',
         rating: 0,
         totalFeedbacks: 0,
@@ -118,7 +118,7 @@ export class FeedbackService {
       sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length;
     return {
       reciverId: user.id,
-      reciverName: user.userName,
+      reciverName: user.userName?? '',
       reciverImage: user.image ?? '',
       rating: Number(finalRating.toFixed(1)),
       totalFeedbacks: sessionRatings.length ?? 0,

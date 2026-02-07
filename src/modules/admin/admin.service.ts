@@ -8,6 +8,7 @@ import { SwapsService } from '../swaps/swaps.service';
 import { FeedbackService } from '../feedback/feedback.service';
 import { SkillsService } from '../skills/skills.service';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from './services/audit.service';
 import {
   AdminSkillsListResponseDto,
   AdminSkillDetailsDto,
@@ -17,7 +18,9 @@ import {
   AdminSwapsListResponseDto,
   AdminSwapsQueryDto,
 } from './dto/admin-swaps.dto';
+import { AdminAuditLogsListResponseDto } from './dto/admin-audit.dto';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class AdminService {
@@ -27,6 +30,7 @@ export class AdminService {
     private readonly swapsService: SwapsService,
     private readonly feedbackService: FeedbackService,
     private readonly skillsService: SkillsService,
+    private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -131,8 +135,28 @@ export class AdminService {
   /**
    * Delete a skill (soft delete by setting isActive to false)
    */
-  async deleteSkill(skillId: string): Promise<{ message: string }> {
-    return await this.skillsService.deleteSkillForAdmin(skillId);
+  async deleteSkill(
+    skillId: string,
+    adminId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ message: string }> {
+    const result = await this.skillsService.deleteSkillForAdmin(skillId);
+
+    // Log the action
+    await this.auditService.logAction(
+      adminId,
+      'DELETE',
+      'Skill',
+      skillId,
+      `Skill deleted successfully`,
+      'SUCCESS',
+      { skillId },
+      ipAddress,
+      userAgent,
+    );
+
+    return result;
   }
 
   /**
@@ -149,5 +173,14 @@ export class AdminService {
    */
   async exportSwaps(swapIds: string[]) {
     return await this.swapsService.exportSwapsAsCSV(swapIds);
+  }
+
+  /**
+   * Get audit logs with pagination, filtering, and sorting
+   */
+  async getAuditLogs(
+    query: PaginationDto,
+  ): Promise<AdminAuditLogsListResponseDto> {
+    return await this.auditService.getAuditLogs(query);
   }
 }

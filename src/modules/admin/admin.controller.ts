@@ -9,7 +9,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  Res,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +20,7 @@ import {
   ApiParam,
   ApiNotFoundResponse,
   ApiBadRequestResponse,
+  ApiInternalServerErrorResponse,
 } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
@@ -32,12 +33,16 @@ import {
   AdminSwapsQueryDto,
   AdminSwapExportDto,
 } from './dto/admin-swaps.dto';
+import { AdminAuditLogsListResponseDto } from './dto/admin-audit.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import type { RequestUser } from 'src/common/types/user.types';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
-import type { Response } from 'express';
+import type { Request } from 'express';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -143,10 +148,20 @@ export class AdminController {
   @ApiOkResponse({ description: 'Skill deleted successfully' })
   @ApiNotFoundResponse({ description: 'Skill not found' })
   @ApiBadRequestResponse({ description: 'Skill is already deleted' })
+  @ApiInternalServerErrorResponse({ description: 'Internal server error' })
   async deleteSkill(
     @Param('id') skillId: string,
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ): Promise<{ message: string }> {
-    return await this.adminService.deleteSkill(skillId);
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('user-agent');
+    return await this.adminService.deleteSkill(
+      skillId,
+      user.id,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @Get('swaps')
@@ -218,11 +233,32 @@ export class AdminController {
       },
     },
   })
-  async exportSwaps(@Body() dto: AdminSwapExportDto, @Res() res: Response) {
-    const file = await this.adminService.exportSwaps(dto.swapIds);
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="swaps.csv"');
+  async exportSwaps(@Body() dto: AdminSwapExportDto): Promise<unknown> {
+    return await this.adminService.exportSwaps(dto.swapIds);
+  }
 
-    res.send(file);
+  @Get('audit')
+  @ApiOperation({ summary: 'Get audit logs with pagination and filtering' })
+  @ApiOkResponse({
+    description: 'Audit logs fetched successfully',
+    type: AdminAuditLogsListResponseDto,
+  })
+  @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+  })
+  async getAuditLogs(
+    @Query() query: PaginationDto,
+  ): Promise<AdminAuditLogsListResponseDto> {
+    return await this.adminService.getAuditLogs(query);
   }
 }

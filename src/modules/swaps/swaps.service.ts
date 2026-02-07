@@ -585,4 +585,64 @@ export class SwapsService {
       acceptanceRate,
     };
   }
+
+  /**
+   * Total completed swaps this week (for admin dashboard).
+   */
+  async getTotalSwapsCompletedThisWeek(): Promise<number> {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    return this.prismaService.swapRequest.count({
+      where: {
+        status: SwapStatus.COMPLETED,
+        updatedAt: { gte: startOfWeek, lt: endOfWeek },
+      },
+    });
+  }
+
+  /**
+   * Top skills by swap count in the given month (for admin dashboard).
+   */
+  async getTopSkillsBySwapCount(
+    year: number,
+    month: number,
+    limit: number,
+  ): Promise<{ skillName: string; swaps: number; percentage: number }[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const completed = await this.prismaService.swapRequest.findMany({
+      where: {
+        status: SwapStatus.COMPLETED,
+        updatedAt: { gte: start, lt: end },
+      },
+      include: {
+        offeredUserSkill: { include: { skill: { select: { id: true, name: true } } } },
+        requestedUserSkill: { include: { skill: { select: { id: true, name: true } } } },
+      },
+    });
+    const countBySkill: Record<string, number> = {};
+    let total = 0;
+    completed.forEach((s) => {
+      const offeredName = s.offeredUserSkill.skill.name;
+      const requestedName = s.requestedUserSkill.skill.name;
+      countBySkill[offeredName] = (countBySkill[offeredName] || 0) + 1;
+      countBySkill[requestedName] = (countBySkill[requestedName] || 0) + 1;
+      total += 2;
+    });
+    if (total === 0) {
+      return [];
+    }
+    const sorted = Object.entries(countBySkill)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+    return sorted.map(([skillName, swaps]) => ({
+      skillName,
+      swaps,
+      percentage: Math.round((swaps / total) * 100),
+    }));
+  }
 }

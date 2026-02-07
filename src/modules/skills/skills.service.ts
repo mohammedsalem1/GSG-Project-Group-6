@@ -51,8 +51,8 @@ export class SkillsService {
         };
        if (searchName) {
          whereClause.OR = [
-            {  skill: { name: { contains: searchName , mode:'insensitive' }}},
-            {  skill: { category: { name: { contains: searchName , mode:'insensitive' }}}},];
+            {  skill: { name: { contains: searchName }}},
+            {  skill: { category: { name: { contains: searchName }}}},];
        }
 
       const { page, ...removePage } = pagination;

@@ -398,4 +398,98 @@ export class SessionService {
 
     return updatedSession;
   }
+
+  /**
+   * Count completed sessions in the current week (for admin dashboard).
+   */
+  async getCompletedSessionsCountThisWeek(): Promise<number> {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    return this.prismaService.session.count({
+      where: {
+        status: SessionStatus.COMPLETED,
+        scheduledAt: { gte: startOfWeek, lt: endOfWeek },
+      },
+    });
+  }
+
+  /**
+   * Completed sessions per day for a given month (for line chart).
+   */
+  async getCompletedSessionsByDay(
+    year: number,
+    month: number,
+  ): Promise<{ day: number; count: number }[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const sessions = await this.prismaService.session.findMany({
+      where: {
+        status: SessionStatus.COMPLETED,
+        scheduledAt: { gte: start, lt: end },
+      },
+      select: { scheduledAt: true },
+    });
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const byDay: Record<number, number> = {};
+    for (let d = 1; d <= daysInMonth; d++) byDay[d] = 0;
+    sessions.forEach((s) => {
+      const d = s.scheduledAt.getDate();
+      byDay[d] = (byDay[d] || 0) + 1;
+    });
+    return Object.entries(byDay).map(([day, count]) => ({
+      day: Number(day),
+      count,
+    }));
+  }
+
+  /**
+   * Requests vs sessions by week in the month (for bar chart).
+   * Week1 = days 1-7, Week2 = 8-14, Week3 = 15-21, Week4 = 22-end.
+   */
+  async getRequestsVsSessionsByWeek(
+    year: number,
+    month: number,
+  ): Promise<{ week: number; requests: number; sessions: number }[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const [requests, sessions] = await Promise.all([
+      this.prismaService.swapRequest.findMany({
+        where: {
+          createdAt: { gte: start, lt: end },
+        },
+        select: { createdAt: true },
+      }),
+      this.prismaService.session.findMany({
+        where: {
+          status: SessionStatus.COMPLETED,
+          scheduledAt: { gte: start, lt: end },
+        },
+        select: { scheduledAt: true },
+      }),
+    ]);
+
+    const weekR: number[] = [0, 0, 0, 0];
+    const weekS: number[] = [0, 0, 0, 0];
+    requests.forEach((r) => {
+      const d = r.createdAt.getDate();
+      const w = Math.min(Math.floor((d - 1) / 7), 3);
+      weekR[w]++;
+    });
+    sessions.forEach((s) => {
+      const d = s.scheduledAt.getDate();
+      const w = Math.min(Math.floor((d - 1) / 7), 3);
+      weekS[w]++;
+    });
+    return [1, 2, 3, 4].map((week) => ({
+      week,
+      requests: weekR[week - 1] ?? 0,
+      sessions: weekS[week - 1] ?? 0,
+    }));
+  }
 }

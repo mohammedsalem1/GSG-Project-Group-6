@@ -521,4 +521,212 @@ export class UserService {
       },
     };
   }
+
+  /**
+   * Get all users for admin (paginated). Keeps admin route but uses user service.
+   */
+  async findAllForAdmin(options: { page?: number; limit?: number } = {}) {
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 10;
+    const skip = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.prismaService.user.findMany({
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          userName: true,
+          email: true,
+          role: true,
+          image: true,
+          isActive: true,
+          isVerified: true,
+          createdAt: true,
+          _count: {
+            select: {
+              sentSwaps: true,
+              receivedSwaps: true,
+              hostedSessions: true,
+              attendedSessions: true,
+              reviewsReceived: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prismaService.user.count(),
+    ]);
+    const totalPages = Math.ceil(total / limit);
+    return {
+      users,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Count distinct users who had at least one completed session in the given period (for "Active Users").
+   */
+  async getActiveUsersCount(startDate: Date, endDate: Date): Promise<number> {
+    const sessions = await this.prismaService.session.findMany({
+      where: {
+        status: 'COMPLETED',
+        scheduledAt: { gte: startDate, lt: endDate },
+      },
+      select: { hostId: true, attendeeId: true },
+    });
+    const userIds = new Set<string>();
+    sessions.forEach((s) => {
+      userIds.add(s.hostId);
+      userIds.add(s.attendeeId);
+    });
+    return userIds.size;
+  }
+
+  /**
+   * Count users created in the given month.
+   */
+  async getNewUsersCount(year: number, month: number): Promise<number> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    return this.prismaService.user.count({
+      where: { createdAt: { gte: start, lt: end } },
+    });
+  }
+
+  /**
+   * Users whose average review rating (from Review.overallRating) is above 3 in the period.
+   */
+  async getUsersRatedAbove3Count(year: number, month: number): Promise<number> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const reviews = await this.prismaService.review.findMany({
+      where: { createdAt: { gte: start, lt: end } },
+      select: { reviewedId: true, overallRating: true },
+    });
+    const ratingNum = (r: string | null) =>
+      r === 'ONE' ? 1 : r === 'TWO' ? 2 : r === 'THREE' ? 3 : r === 'FOUR' ? 4 : r === 'FIVE' ? 5 : 0;
+    const byUser: Record<string, number[]> = {};
+    reviews.forEach((r) => {
+      if (!byUser[r.reviewedId]) byUser[r.reviewedId] = [];
+      byUser[r.reviewedId].push(ratingNum(r.overallRating));
+    });
+    return Object.keys(byUser).filter(
+      (uid) =>
+        byUser[uid].reduce((a, b) => a + b, 0) / byUser[uid].length > 3,
+    ).length;
+  }
+
+  /**
+   * Users whose average review rating is below 3.
+   */
+  async getUsersRatedBelow3Count(year: number, month: number): Promise<number> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const reviews = await this.prismaService.review.findMany({
+      where: { createdAt: { gte: start, lt: end } },
+      select: { reviewedId: true, overallRating: true },
+    });
+    const ratingNum = (r: string | null) =>
+      r === 'ONE' ? 1 : r === 'TWO' ? 2 : r === 'THREE' ? 3 : r === 'FOUR' ? 4 : r === 'FIVE' ? 5 : 0;
+    const byUser: Record<string, number[]> = {};
+    reviews.forEach((r) => {
+      if (!byUser[r.reviewedId]) byUser[r.reviewedId] = [];
+      byUser[r.reviewedId].push(ratingNum(r.overallRating));
+    });
+    return Object.keys(byUser).filter((uid) => {
+      const arr = byUser[uid];
+      return arr.length > 0 && arr.reduce((a, b) => a + b, 0) / arr.length < 3;
+    }).length;
+  }
+
+  /**
+   * Users with more than one session cancellation in the month.
+   */
+  async getUsersWithMultipleCancellationsCount(
+    year: number,
+    month: number,
+  ): Promise<number> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const cancelled = await this.prismaService.session.findMany({
+      where: {
+        status: 'CANCELLED',
+        updatedAt: { gte: start, lt: end },
+      },
+      select: { hostId: true, attendeeId: true },
+    });
+    const countByUser: Record<string, number> = {};
+    cancelled.forEach((s) => {
+      [s.hostId, s.attendeeId].forEach((id) => {
+        countByUser[id] = (countByUser[id] || 0) + 1;
+      });
+    });
+    return Object.values(countByUser).filter((c) => c > 1).length;
+  }
+
+  /**
+   * Count users who have at least one review flagged in the given month.
+   */
+  async getFlaggedUsersCountInMonth(
+    year: number,
+    month: number,
+  ): Promise<number> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const flagged = await this.prismaService.review.findMany({
+      where: {
+        isFlagged: true,
+        createdAt: { gte: start, lt: end },
+      },
+      select: { reviewedId: true },
+      distinct: ['reviewedId'],
+    });
+    return flagged.length;
+  }
+
+  /**
+   * Most active users by completed swap count in the month (top N).
+   */
+  async getMostActiveUsers(
+    year: number,
+    month: number,
+    limit: number,
+  ): Promise<{ userName: string; image: string | null; swaps: number }[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const completed = await this.prismaService.swapRequest.findMany({
+      where: {
+        status: 'COMPLETED',
+        updatedAt: { gte: start, lt: end },
+      },
+      select: { requesterId: true, receiverId: true },
+    });
+    const countByUser: Record<string, number> = {};
+    completed.forEach((s) => {
+      countByUser[s.requesterId] = (countByUser[s.requesterId] || 0) + 1;
+      countByUser[s.receiverId] = (countByUser[s.receiverId] || 0) + 1;
+    });
+    const sorted = Object.entries(countByUser)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+    if (sorted.length === 0) return [];
+    const userIds = sorted.map(([id]) => id);
+    const users = await this.prismaService.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, userName: true, image: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    return sorted.map(([id, swaps]) => ({
+      userName: userMap.get(id)?.userName ?? 'Unknown',
+      image: userMap.get(id)?.image ?? null,
+      swaps,
+    }));
+  }
 }

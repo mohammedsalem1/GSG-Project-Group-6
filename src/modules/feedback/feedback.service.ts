@@ -106,5 +106,22 @@ export class FeedbackService {
              rating: Number(finalRating.toFixed(1)),
              totalFeedbacks: sessionRatings.length ?? 0
           };
-    } 
+    }
+
+    /**
+     * Count feedbacks submitted this week (for admin dashboard "Weekly Reports").
+     */
+    async getWeeklyReportsCount(): Promise<number> {
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 7);
+      return this.prismaService.feedback.count({
+        where: {
+          createdAt: { gte: startOfWeek, lt: endOfWeek },
+        },
+      });
+    }
 }

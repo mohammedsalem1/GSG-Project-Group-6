@@ -13,32 +13,11 @@ import {
   AdminSkillDetailsDto,
   AdminSkillsQueryDto,
 } from './dto/admin-skills.dto';
-
-export interface AdminDashboardDto {
-  summary: {
-    completedSessionsThisWeek: number;
-    activeUsers: number;
-    totalSwapThisWeek: number;
-    weeklyReports: number;
-  };
-  completedSessionsChart: { day: number; count: number }[];
-  topSkills: { skillName: string; swaps: number; percentage: number }[];
-  mostActiveUsers: { userName: string; image: string | null; swaps: number }[];
-  requestsVsSessions: { week: number; requests: number; sessions: number }[];
-  userOverview: {
-    newUsers: number;
-    newUsersPercentage: number;
-    usersRatedAbove3: number;
-    usersRatedAbove3Percentage: number;
-    usersRatedBelow3: number;
-    usersRatedBelow3Percentage: number;
-    usersWithMultipleCancellations: number;
-    usersWithMultipleCancellationsPercentage: number;
-    flaggedUsersThisMonth: number;
-    flaggedUsersThisMonthPercentage: number;
-  };
-  period: { year: number; month: number };
-}
+import {
+  AdminSwapsListResponseDto,
+  AdminSwapsQueryDto,
+} from './dto/admin-swaps.dto';
+import { AdminDashboardDto } from './dto/admin-dashboard.dto';
 
 @Injectable()
 export class AdminService {
@@ -154,5 +133,21 @@ export class AdminService {
    */
   async deleteSkill(skillId: string): Promise<{ message: string }> {
     return await this.skillsService.deleteSkillForAdmin(skillId);
+  }
+
+  /**
+   * Get all swaps with pagination, filtering, and sorting
+   */
+  async getAllSwaps(
+    query: AdminSwapsQueryDto,
+  ): Promise<AdminSwapsListResponseDto> {
+    return await this.swapsService.getAllSwapsForAdmin(query);
+  }
+
+  /**
+   * Export swaps as CSV
+   */
+  async exportSwaps(swapIds: string[]) {
+    return await this.swapsService.exportSwapsAsCSV(swapIds);
   }
 }

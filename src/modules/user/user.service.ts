@@ -11,10 +11,14 @@ import { CreateUserDto } from './dto/user.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AddUserSkillDto, SearchUsersDto } from './dto';
+import { FeedbackService } from '../feedback/feedback.service';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly feedbackService: FeedbackService,
+  ) {}
   create(createUserDto: CreateUserDto) {
     return this.prismaService.user.create({
       data: {
@@ -63,40 +67,37 @@ export class UserService {
       },
     });
   }
-  async updateUserSelectedCategories(
-  userId: string,
-  selectedCatIds: string[],
-) {
-  const uniqueIds = [...new Set(selectedCatIds)];
-  const categories = await this.prismaService.category.findMany({
-    where: {
-      id: { in: uniqueIds },
-    },
-    select: { id: true },
-  });
+  async updateUserSelectedCategories(userId: string, selectedCatIds: string[]) {
+    const uniqueIds = [...new Set(selectedCatIds)];
+    const categories = await this.prismaService.category.findMany({
+      where: {
+        id: { in: uniqueIds },
+      },
+      select: { id: true },
+    });
 
-  if (categories.length !== uniqueIds.length) {
-    const foundIds = new Set(categories.map(c => c.id));
-    const notFoundIds = uniqueIds.filter(id => !foundIds.has(id));
+    if (categories.length !== uniqueIds.length) {
+      const foundIds = new Set(categories.map((c) => c.id));
+      const notFoundIds = uniqueIds.filter((id) => !foundIds.has(id));
 
-    throw new BadRequestException({
-      message: 'Some category IDs were not found',
-      notFoundIds,
+      throw new BadRequestException({
+        message: 'Some category IDs were not found',
+        notFoundIds,
+      });
+    }
+
+    return this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        selectedCatIds: uniqueIds.join(','),
+      },
+      select: {
+        id: true,
+        userName: true,
+        selectedCatIds: true,
+      },
     });
   }
-
-  return this.prismaService.user.update({
-    where: { id: userId },
-    data: {
-      selectedCatIds: uniqueIds.join(','),
-    },
-    select: {
-      id:true , 
-      userName:true,
-      selectedCatIds:true
-    }
-  });
- }
 
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({
@@ -339,13 +340,6 @@ export class UserService {
           },
         },
 
-        // Include reviews received (for calculating rating)
-        reviewsReceived: {
-          select: {
-            overallRating: true,
-          },
-        },
-
         // Include stats
         _count: {
           select: {
@@ -363,35 +357,12 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    // Convert Rating enum to number
-    const ratingToNumber = (rating: any): number => {
-      const ratingMap: Record<string, number> = {
-        ONE: 1,
-        TWO: 2,
-        THREE: 3,
-        FOUR: 4,
-        FIVE: 5,
-      };
-      return ratingMap[rating] || 0;
-    };
-
-    // Calculate average rating from overall ratings
-    const overallRatings = user.reviewsReceived.map((r) =>
-      ratingToNumber(r.overallRating?? ''),
-    );
-    const averageRating =
-      overallRatings.length > 0
-        ? overallRatings.reduce((sum, rating) => sum + rating, 0) /
-          overallRatings.length
-        : 0;
-
-    // Remove reviewsReceived array, return only the average
-    const { reviewsReceived, ...userWithoutReviews } = user;
+    const ratingData = await this.feedbackService.getUserRating(userId);
 
     return {
-      ...userWithoutReviews,
-      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
-      totalReviews: overallRatings.length,
+      ...user,
+      averageRating: ratingData.rating,
+      totalFeedbacks: ratingData.totalFeedbacks,
     };
   }
 
@@ -409,10 +380,9 @@ export class UserService {
 
     // Build where clause
     const where: any = {
-      isActive: true, // Only show active users
+      isActive: true,
     };
 
-    // Text search in username, bio, location
     if (query) {
       where.OR = [
         { userName: { contains: query } },
@@ -421,26 +391,22 @@ export class UserService {
       ];
     }
 
-    // Filter by country
     if (country) {
       where.country = { contains: country };
     }
 
-    // Filter by location
     if (location) {
       where.location = { contains: location };
     }
 
-    // Filter by availability
     if (availability) {
       where.availability = availability;
     }
 
-    // Filter by skill
     if (skillName || skillLevel) {
       where.skills = {
         some: {
-          isOffering: true, // Only search offered skills
+          isOffering: true,
           ...(skillName && {
             skill: {
               name: { contains: skillName },
@@ -451,10 +417,8 @@ export class UserService {
       };
     }
 
-    // Calculate pagination
     const skip = (page - 1) * limit;
 
-    // Execute query
     const [users, total] = await Promise.all([
       this.prismaService.user.findMany({
         where,
@@ -471,7 +435,7 @@ export class UserService {
           availability: true,
           createdAt: true,
           skills: {
-            where: { isOffering: true }, // Only show offered skills
+            where: { isOffering: true },
             select: {
               id: true,
               level: true,
@@ -489,28 +453,37 @@ export class UserService {
                 },
               },
             },
-            take: 5, // Limit skills per user
+            take: 5,
           },
           _count: {
             select: {
-              reviewsReceived: true,
+              feedbackReceived: true,
             },
           },
         },
-        orderBy: [
-          { createdAt: 'desc' }, // Newest first
-        ],
+        orderBy: [{ createdAt: 'desc' }],
       }),
       this.prismaService.user.count({ where }),
     ]);
 
-    // Calculate pagination metadata
+    // Add ratings to each user
+    const usersWithRatings = await Promise.all(
+      users.map(async (user) => {
+        const ratingData = await this.feedbackService.getUserRating(user.id);
+        return {
+          ...user,
+          averageRating: ratingData.rating,
+          totalFeedbacks: ratingData.totalFeedbacks,
+        };
+      }),
+    );
+
     const totalPages = Math.ceil(total / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
     return {
-      users,
+      users: usersWithRatings,
       pagination: {
         total,
         page,

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-
 import { Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
@@ -18,6 +15,10 @@ import {
   AdminSwapsListResponseDto,
   AdminSwapsQueryDto,
 } from './dto/admin-swaps.dto';
+import {
+  AdminSessionsListResponseDto,
+  AdminSessionsQueryDto,
+} from './dto/admin-sessions.dto';
 import { AdminAuditLogsListResponseDto } from './dto/admin-audit.dto';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
@@ -182,5 +183,22 @@ export class AdminService {
     query: PaginationDto,
   ): Promise<AdminAuditLogsListResponseDto> {
     return await this.auditService.getAuditLogs(query);
+  }
+
+  /**
+   * Get all sessions with pagination, filtering, and sorting
+   */
+  async getAllSessions(
+    query: AdminSessionsQueryDto,
+  ): Promise<AdminSessionsListResponseDto> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return await this.sessionService.getAllSessionsForAdmin(query);
+  }
+
+  /**
+   * Export sessions as CSV
+   */
+  async exportSessions(sessionIds: string[]): Promise<string> {
+    return await this.sessionService.exportSessionsAsCSV(sessionIds);
   }
 }

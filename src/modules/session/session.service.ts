@@ -492,4 +492,199 @@ export class SessionService {
       sessions: weekS[week - 1] ?? 0,
     }));
   }
+
+  /**
+   * Get all sessions for admin with filtering and pagination
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getAllSessionsForAdmin(query: any) {
+    const where: any = {};
+
+    // Filter by status
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    // Filter by search (session ID, user name, or email)
+    if (query.search) {
+      where.OR = [
+        { id: { contains: query.search, mode: 'insensitive' } },
+        { host: { userName: { contains: query.search, mode: 'insensitive' } } },
+        { host: { email: { contains: query.search, mode: 'insensitive' } } },
+        {
+          attendee: {
+            userName: { contains: query.search, mode: 'insensitive' },
+          },
+        },
+        {
+          attendee: { email: { contains: query.search, mode: 'insensitive' } },
+        },
+      ];
+    }
+
+    // Filter by date range
+    if (query.startDate || query.endDate) {
+      where.scheduledAt = {};
+      if (query.startDate) {
+        const startDate = new Date(query.startDate);
+        where.scheduledAt.gte = startDate;
+      }
+      if (query.endDate) {
+        const endDate = new Date(query.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.scheduledAt.lte = endDate;
+      }
+    }
+
+    const pagination = this.prismaService.handleQueryPagination(query);
+    const { page, ...paginationArgs } = pagination;
+
+    // Get week start for summary counts
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    const [sessions, count, completedCount, cancelledCount, disputedCount] =
+      await Promise.all([
+        this.prismaService.session.findMany({
+          where,
+          include: {
+            host: {
+              select: {
+                id: true,
+                userName: true,
+                image: true,
+              },
+            },
+            attendee: {
+              select: {
+                id: true,
+                userName: true,
+                image: true,
+              },
+            },
+            skill: {
+              select: {
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            scheduledAt: query.sort === 'oldest' ? 'asc' : 'desc',
+          },
+          ...paginationArgs,
+        }),
+        this.prismaService.session.count({ where }),
+        this.prismaService.session.count({
+          where: {
+            status: 'COMPLETED',
+            scheduledAt: { gte: weekStart, lt: weekEnd },
+          },
+        }),
+        this.prismaService.session.count({
+          where: {
+            status: 'CANCELLED',
+            scheduledAt: { gte: weekStart, lt: weekEnd },
+          },
+        }),
+        // Disputed: sessions that were rescheduled (indicates issues)
+        this.prismaService.session.count({
+          where: {
+            status: 'RESCHEDULED',
+            scheduledAt: { gte: weekStart, lt: weekEnd },
+          },
+        }),
+      ]);
+
+    const data = sessions.map((session) => ({
+      id: session.id,
+      scheduledAt: session.scheduledAt,
+      endsAt: session.endsAt,
+      status: session.status,
+      skillName: session.skill?.name || 'N/A',
+      host: session.host,
+      attendee: session.attendee,
+      duration: session.duration,
+    }));
+
+    return {
+      data,
+      summary: {
+        completed: completedCount,
+        cancelled: cancelledCount,
+        disputed: disputedCount,
+      },
+      total: count,
+      page,
+      limit: paginationArgs.take,
+    };
+  }
+
+  /**
+   * Export sessions as CSV
+   */
+  async exportSessionsAsCSV(sessionIds: string[]): Promise<string> {
+    const sessions = await this.prismaService.session.findMany({
+      where: {
+        id: { in: sessionIds },
+      },
+      include: {
+        host: {
+          select: {
+            id: true,
+            userName: true,
+          },
+        },
+        attendee: {
+          select: {
+            id: true,
+            userName: true,
+          },
+        },
+        skill: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // CSV Header
+    const headers = [
+      'Session ID',
+      'Scheduled At',
+      'Ends At',
+      'Status',
+      'Skill',
+      'Host',
+      'Attendee',
+      'Duration (minutes)',
+      'Created At',
+    ];
+
+    // CSV Rows
+    const rows = sessions.map((session) => [
+      session.id,
+      session.scheduledAt.toISOString(),
+      session.endsAt.toISOString(),
+      session.status,
+      session.skill?.name || 'N/A',
+      session.host.userName,
+      session.attendee.userName,
+      session.duration.toString(),
+      session.createdAt.toISOString(),
+    ]);
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    return csvContent;
+  }
 }

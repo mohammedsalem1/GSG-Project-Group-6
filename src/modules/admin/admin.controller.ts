@@ -33,6 +33,11 @@ import {
   AdminSwapsQueryDto,
   AdminSwapExportDto,
 } from './dto/admin-swaps.dto';
+import {
+  AdminSessionsListResponseDto,
+  AdminSessionsQueryDto,
+  AdminSessionExportDto,
+} from './dto/admin-sessions.dto';
 import { AdminAuditLogsListResponseDto } from './dto/admin-audit.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -260,5 +265,81 @@ export class AdminController {
     @Query() query: PaginationDto,
   ): Promise<AdminAuditLogsListResponseDto> {
     return await this.adminService.getAuditLogs(query);
+  }
+
+  @Get('sessions')
+  @ApiOperation({
+    summary: 'Get all sessions with pagination, filtering, and sorting',
+  })
+  @ApiOkResponse({
+    description: 'Sessions fetched successfully',
+    type: AdminSessionsListResponseDto,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by name or email',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'RESCHEDULED'],
+    description: 'Filter by session status',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: ['newest', 'oldest'],
+    description: 'Sort by date',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Start date for range filter (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'End date for range filter (YYYY-MM-DD)',
+  })
+  async getAllSessions(
+    @Query() query: AdminSessionsQueryDto,
+  ): Promise<AdminSessionsListResponseDto> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
+    return await this.adminService.getAllSessions(query);
+  }
+
+  @Post('sessions/export')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Export selected sessions as CSV' })
+  @ApiOkResponse({
+    description: 'CSV file',
+    content: {
+      'text/csv': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async exportSessions(@Body() dto: AdminSessionExportDto): Promise<unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    return await this.adminService.exportSessions(dto.sessionIds);
   }
 }

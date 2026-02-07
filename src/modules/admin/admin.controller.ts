@@ -1,12 +1,28 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiOkResponse,
   ApiQuery,
+  ApiParam,
+  ApiNotFoundResponse,
+  ApiInternalServerErrorResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { AdminService, AdminDashboardDto } from './admin.service';
+import {
+  AdminSkillsListResponseDto,
+  AdminSkillDetailsDto,
+  AdminSkillsQueryDto,
+} from './dto/admin-skills.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -74,5 +90,53 @@ export class AdminController {
     const m = month ? parseInt(month, 10) : undefined;
     const y = year ? parseInt(year, 10) : undefined;
     return this.adminService.getDashboard(m, y);
+  }
+
+  @Get('skills')
+  @ApiOperation({ summary: 'Get all skills with pagination and filtering' })
+  @ApiOkResponse({
+    description: 'Skills fetched successfully',
+    type: AdminSkillsListResponseDto,
+  })
+  async getAllSkills(
+    @Query() query: AdminSkillsQueryDto,
+  ): Promise<AdminSkillsListResponseDto> {
+    return await this.adminService.getAllSkills(query);
+  }
+
+  @Get('skills/:id')
+  @ApiOperation({ summary: 'Get skill details by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'Skill ID',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'Skill details fetched successfully',
+    type: AdminSkillDetailsDto,
+  })
+  @ApiNotFoundResponse({ description: 'Skill not found' })
+  @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+  async getSkillDetails(
+    @Param('id') skillId: string,
+  ): Promise<AdminSkillDetailsDto> {
+    return await this.adminService.getSkillDetails(skillId);
+  }
+
+  @Delete('skills/:id')
+  @ApiOperation({ summary: 'Delete a skill' })
+  @ApiParam({
+    name: 'id',
+    description: 'Skill ID',
+    type: String,
+  })
+  @ApiOkResponse({ description: 'Skill deleted successfully' })
+  @ApiNotFoundResponse({ description: 'Skill not found' })
+  @ApiBadRequestResponse({ description: 'Skill is already deleted' })
+  @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+  async deleteSkill(
+    @Param('id') skillId: string,
+  ): Promise<{ message: string }> {
+    return await this.adminService.deleteSkill(skillId);
   }
 }

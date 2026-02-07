@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 import { Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { SwapsService } from '../swaps/swaps.service';
 import { FeedbackService } from '../feedback/feedback.service';
+import { SkillsService } from '../skills/skills.service';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  AdminSkillsListResponseDto,
+  AdminSkillDetailsDto,
+  AdminSkillsQueryDto,
+} from './dto/admin-skills.dto';
 
 export interface AdminDashboardDto {
   summary: {
@@ -43,6 +47,7 @@ export class AdminService {
     private readonly sessionService: SessionService,
     private readonly swapsService: SwapsService,
     private readonly feedbackService: FeedbackService,
+    private readonly skillsService: SkillsService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -126,5 +131,28 @@ export class AdminService {
       },
       period: { year: y, month: m },
     };
+  }
+
+  /**
+   * Get all skills with pagination, filtering, and sorting
+   */
+  async getAllSkills(
+    query: AdminSkillsQueryDto,
+  ): Promise<AdminSkillsListResponseDto> {
+    return await this.skillsService.getAllSkillsForAdmin(query);
+  }
+
+  /**
+   * Get detailed information about a specific skill
+   */
+  async getSkillDetails(skillId: string): Promise<AdminSkillDetailsDto> {
+    return await this.skillsService.getSkillDetailsForAdmin(skillId);
+  }
+
+  /**
+   * Delete a skill (soft delete by setting isActive to false)
+   */
+  async deleteSkill(skillId: string): Promise<{ message: string }> {
+    return await this.skillsService.deleteSkillForAdmin(skillId);
   }
 }

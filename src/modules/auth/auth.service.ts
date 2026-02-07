@@ -63,7 +63,6 @@ export class AuthService {
     console.log(otp)
     const hashedOtp = await hashOTP(otp);
     const createdUser = await this.userService.create({
-      userName: registerDto.userName,
       email: registerDto.email,
       password: hashedPassword,
       otpCode: hashedOtp,
@@ -185,7 +184,7 @@ export class AuthService {
     const { accessToken, refreshToken } = await this.generateTokens({
       sub: user.id,
       email: user.email,
-      userName: user.userName,
+      userName: user.userName ?? '',
       role: user.role,
     });
 

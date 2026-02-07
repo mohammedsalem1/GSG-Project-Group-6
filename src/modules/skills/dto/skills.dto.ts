@@ -59,6 +59,7 @@ export class CategorySkillsDto {
 
 export class SkillInfoDto {
   @ApiProperty()
+  @IsOptional()
   @IsString()
   name: string;
 

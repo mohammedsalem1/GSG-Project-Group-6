@@ -10,13 +10,11 @@ import {
 import { Availability } from '@prisma/client';
 
 export class UpdateUserDto {
-  @ApiPropertyOptional({
-    example: '+970599123456',
-    description: 'Phone number with country code',
-  })
+  @ApiPropertyOptional({ example: 'mohammed' })
   @IsOptional()
-  @IsPhoneNumber(undefined, { message: 'Please provide a valid phone number' })
-  phoneNumber?: string;
+  @IsString()
+  @MinLength(3)
+  userName: string;
 
   @ApiPropertyOptional({
     example: 'I am a passionate web developer with 5 years of experience...',

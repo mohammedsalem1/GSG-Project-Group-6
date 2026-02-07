@@ -11,10 +11,14 @@ import { CreateUserDto } from './dto/user.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AddUserSkillDto, SearchUsersDto } from './dto';
+import { FeedbackService } from '../feedback/feedback.service';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly feedbackService: FeedbackService,
+  ) {}
   create(createUserDto: CreateUserDto) {
     return this.prismaService.user.create({
       data: {
@@ -336,19 +340,6 @@ export class UserService {
           },
         },
 
-        // Include feedbacks received (for calculating rating)
-        feedbackReceived: {
-          select: {
-            sessionFocus: true,
-            activeParticipation: true,
-            learningFocus: true,
-            clarity: true,
-            patience: true,
-            sessionStructure: true,
-            communication: true,
-          },
-        },
-
         // Include stats
         _count: {
           select: {
@@ -366,37 +357,12 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    // Calculate average rating from feedback
-    let totalRating = 0;
-    let ratingCount = 0;
-
-    user.feedbackReceived.forEach((feedback) => {
-      // Collect all non-null rating fields
-      const ratings = [
-        feedback.sessionFocus,
-        feedback.activeParticipation,
-        feedback.learningFocus,
-        feedback.clarity,
-        feedback.patience,
-        feedback.sessionStructure,
-        feedback.communication,
-      ].filter((rating) => rating !== null); // Only count non-null ratings
-
-      ratings.forEach((rating) => {
-        totalRating += rating;
-        ratingCount++;
-      });
-    });
-
-    const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
-
-    // Remove feedbackReceived array, return only the average
-    const { feedbackReceived, ...userWithoutFeedback } = user;
+    const ratingData = await this.feedbackService.getUserRating(userId);
 
     return {
-      ...userWithoutFeedback,
-      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
-      totalFeedbacks: user.feedbackReceived.length,
+      ...user,
+      averageRating: ratingData.rating,
+      totalFeedbacks: ratingData.totalFeedbacks,
     };
   }
 
@@ -414,10 +380,9 @@ export class UserService {
 
     // Build where clause
     const where: any = {
-      isActive: true, // Only show active users
+      isActive: true,
     };
 
-    // Text search in username, bio, location
     if (query) {
       where.OR = [
         { userName: { contains: query } },
@@ -426,26 +391,22 @@ export class UserService {
       ];
     }
 
-    // Filter by country
     if (country) {
       where.country = { contains: country };
     }
 
-    // Filter by location
     if (location) {
       where.location = { contains: location };
     }
 
-    // Filter by availability
     if (availability) {
       where.availability = availability;
     }
 
-    // Filter by skill
     if (skillName || skillLevel) {
       where.skills = {
         some: {
-          isOffering: true, // Only search offered skills
+          isOffering: true,
           ...(skillName && {
             skill: {
               name: { contains: skillName },
@@ -456,10 +417,8 @@ export class UserService {
       };
     }
 
-    // Calculate pagination
     const skip = (page - 1) * limit;
 
-    // Execute query
     const [users, total] = await Promise.all([
       this.prismaService.user.findMany({
         where,
@@ -476,7 +435,7 @@ export class UserService {
           availability: true,
           createdAt: true,
           skills: {
-            where: { isOffering: true }, // Only show offered skills
+            where: { isOffering: true },
             select: {
               id: true,
               level: true,
@@ -494,28 +453,37 @@ export class UserService {
                 },
               },
             },
-            take: 5, // Limit skills per user
+            take: 5,
           },
           _count: {
             select: {
-              reviewsReceived: true,
+              feedbackReceived: true,
             },
           },
         },
-        orderBy: [
-          { createdAt: 'desc' }, // Newest first
-        ],
+        orderBy: [{ createdAt: 'desc' }],
       }),
       this.prismaService.user.count({ where }),
     ]);
 
-    // Calculate pagination metadata
+    // Add ratings to each user
+    const usersWithRatings = await Promise.all(
+      users.map(async (user) => {
+        const ratingData = await this.feedbackService.getUserRating(user.id);
+        return {
+          ...user,
+          averageRating: ratingData.rating,
+          totalFeedbacks: ratingData.totalFeedbacks,
+        };
+      }),
+    );
+
     const totalPages = Math.ceil(total / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
     return {
-      users,
+      users: usersWithRatings,
       pagination: {
         total,
         page,

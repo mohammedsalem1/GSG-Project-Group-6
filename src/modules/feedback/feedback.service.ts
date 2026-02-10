@@ -4,32 +4,24 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
-import { session } from 'passport';
 import { PrismaService } from 'src/database/prisma.service';
 import { SessionStatus } from '@prisma/client';
+import { SessionService } from '../session/session.service';
 
 @Injectable()
 export class FeedbackService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+      private readonly prismaService: PrismaService,
+      private readonly sessionService: SessionService
+    ) {}
 
   async createFeedback(createFeedbackDto: CreateFeedbackDto, giverId: string) {
-    // check the session is exist
-    const session = await this.prismaService.session.findUnique({
-      where: { id: createFeedbackDto.sessionId },
-    });
 
-    if (!session) {
-      throw new BadRequestException('the session is not found');
-    }
-
+    const session = await this.sessionService.getSessionById(giverId,createFeedbackDto.sessionId)
     if (session.status !== SessionStatus.COMPLETED) {
       throw new BadRequestException(
         "you don't feedback because the session is not completed",
       );
-    }
-
-    if (session.hostId !== giverId && session.attendeeId !== giverId) {
-      throw new ForbiddenException('You are not part of this swap');
     }
 
     const existingFeedback = await this.prismaService.feedback.findFirst({
@@ -59,9 +51,9 @@ export class FeedbackService {
   async getUserRating(userId: string): Promise<{
     rating: number;
     totalFeedbacks: number;
-    reciverId: string;
-    reciverName: string;
-    reciverImage: string;
+    receiverId: string;
+    receiverName: string;
+    receiverImage: string;
   }> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
@@ -77,14 +69,13 @@ export class FeedbackService {
 
     if (feedbacks.length === 0) {
       return {
-        reciverId: user.id,
-        reciverName: user.userName ?? '',
-        reciverImage: user.image ?? '',
+        receiverId: user.id,
+        receiverName: user.userName ?? '',
+        receiverImage: user.image ?? '',
         rating: 0,
         totalFeedbacks: 0,
       };
     }
-    console.log(feedbacks);
     const sessionRatings = feedbacks
       .map((feedback) => {
         const scores = [
@@ -107,9 +98,9 @@ export class FeedbackService {
       .filter((v): v is number => v !== null);
     if (sessionRatings.length === 0) {
       return {
-        reciverId: user.id,
-        reciverName: user.userName ?? '',
-        reciverImage: user.image ?? '',
+        receiverId: user.id,
+        receiverName: user.userName?? '',
+        receiverImage: user.image ?? '',
         rating: 0,
         totalFeedbacks: 0,
       };
@@ -117,9 +108,9 @@ export class FeedbackService {
     const finalRating =
       sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length;
     return {
-      reciverId: user.id,
-      reciverName: user.userName?? '',
-      reciverImage: user.image ?? '',
+      receiverId: user.id,
+      receiverName: user.userName?? '',
+      receiverImage: user.image ?? '',
       rating: Number(finalRating.toFixed(1)),
       totalFeedbacks: sessionRatings.length ?? 0,
     };

@@ -64,9 +64,9 @@ export class FeedbackController {
             example: {
                 success: true,
                 data: {
-                        reciverId: "f97c5280-bcb2-4f66-8d79-dc77dae3c8e1",
-                        reciverName: "mohammed",
-                        reciverImage: "",
+                        receiverId: "f97c5280-bcb2-4f66-8d79-dc77dae3c8e1",
+                        receiverName: "mohammed",
+                        receiverImage: "",
                         rating: 2.8,
                         totalFeedbacks: 1
                 },

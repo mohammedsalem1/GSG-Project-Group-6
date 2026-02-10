@@ -13,7 +13,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 @Controller('reviews')
 export class ReviewsController {
    
-
+     /// review controller
     constructor(private readonly reviewService:ReviewsService){}
 
     @Post('')

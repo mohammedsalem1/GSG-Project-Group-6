@@ -59,6 +59,7 @@ export class CategorySkillsDto {
 
 export class SkillInfoDto {
   @ApiProperty()
+  @IsOptional()
   @IsString()
   name: string;
 
@@ -92,11 +93,11 @@ export class ProviderDto {
 
   @ApiProperty()
   @IsNumber()
-  averageRating: number;
+  rating: number;
 
   @ApiProperty()
   @IsNumber()
-  totalReviews: number;
+  totalFeedbacks: number | undefined ;
 }
 
 
@@ -114,9 +115,7 @@ export class LatestReviewDto {
   @IsOptional()
   @IsString()
   comment: string | null;
-   
-  @ApiProperty()
-  overallRating: string
+  
 
 }
 
@@ -165,10 +164,6 @@ export class UserSkillDetailsResponseDto {
 
 
 export class FilterSkillDto extends PaginationDto {
-  @ApiPropertyOptional({ example: 'web' })
-  @IsOptional()
-  @IsString()
-  nameCategory?: string;
 
   @ApiPropertyOptional({ example: 'WEEKENDS', enum: Availability })
   @IsOptional()
@@ -232,11 +227,11 @@ export class ProviderWithSwapsDto {
 
   @ApiProperty()
   @IsNumber()
-  averageRating: number;
+  rating: number;
 
   @ApiProperty()
   @IsNumber()
-  totalReviews: number;
+  totalFeedbacks: number;
 }
 
 
@@ -279,6 +274,12 @@ export class SessionDto {
 
 
 export class UpdateUserCategoriesDto {
+  @ApiProperty({
+  isArray: true,
+  type: String,
+  format: 'uuid'
+})
+
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID("all", { each: true })

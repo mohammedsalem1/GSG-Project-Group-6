@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -58,7 +58,7 @@ enum Rating {
 enum SwapStatus {
   PENDING
   ACCEPTED
-  REJECTED
+  DECLINED
   EXPIRED
   COMPLETED
   CANCELLED
@@ -99,7 +99,7 @@ enum TokenType {
 
 model User {
   id            String        @id @default(uuid())
-  userName      String        @unique
+  userName      String?        @unique
   email         String        @unique
   password      String
   phoneNumber   String?
@@ -132,6 +132,8 @@ model User {
   reviewsGiven Review[] @relation("Reviewer")
   reviewsReceived Review[] @relation("Reviewed")
 
+  feedbackGiven   Feedback[] @relation("FeedbackGiver")
+  feedbackReceived Feedback[] @relation("FeedbackReceiver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,12 +206,20 @@ model SwapRequest {
   offeredUserSkillId    String
   requestedUserSkill    UserSkill  @relation("RequestedSkill", fields: [requestedUserSkillId], references: [id])
   requestedUserSkillId  String
+  
 
+  /// Preferred Time
+  date      DateTime
+  startAt   DateTime       
+  endAt     DateTime         
+  timezone  String   @default("UTC")
+  
   status        SwapStatus @default(PENDING)
   rejectionReason String?
   expiresAt     DateTime
   tracking      Json?
-
+  
+  message      String?
   conversation Conversation?
   session      Session?
   reviews      Review[]
@@ -285,12 +295,14 @@ model Session {
   hostJoinedAt    DateTime?
   attendeeJoinedAt DateTime?
   
+  feedbacks   Feedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("sessions")
 }
+
 
 model Review {
   id                   String  @id @default(uuid())
@@ -299,22 +311,64 @@ model Review {
   reviewer             User    @relation("Reviewer", fields: [reviewerId], references: [id])
   reviewerId           String
   reviewed             User    @relation("Reviewed", fields: [reviewedId], references: [id])
+  reviewedId           String
 
-  userSkillId      String
+  userSkillId          String
   userSkill            UserSkill @relation(fields: [userSkillId], references: [id])
 
-  reviewedId           String
-  overallRating        Rating
-  communicationRating  Rating?
-  punctualityRating    Rating
+  overallRating        Rating?
   comment              String?
   isVerified           Boolean @default(true)
   isFlagged            Boolean @default(false)
-
+  isPublic             Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@map("reviews")
+
+}
+model Feedback {
+  id            String   @id @default(uuid())
+
+  sessionId     String
+  session       Session  @relation(fields: [sessionId], references: [id])
+
+  giverId       String
+  giver         User     @relation("FeedbackGiver", fields: [giverId], references: [id])
+
+  receiverId    String
+  receiver      User     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
+  
+  role          FeedbackCategory    @default(GENERAL)
+
+  // ── Teaching-related ──
+  sessionFocus        Int?   // where they focused the whole session
+  activeParticipation Int?   // actively participation
+  openToFeedback      Int?
+
+
+  // ── Learning-related ──
+  learningFocus       Int?
+  clarity             Int?
+  patience            Int?
+  sessionStructure    Int?
+
+  // ── Shared ──
+  communication       Int?
+  onTime              Boolean?
+
+  strengths     String?
+  improvements  String?
+
+  createdAt     DateTime @default(now())
+
+  @@unique([sessionId, giverId])
+  @@map("feedbacks")
+}
+enum FeedbackCategory {
+  TEACHING
+  LEARNING
+  GENERAL
 }
 
 model Badge {
@@ -391,4 +445,20 @@ model UserToken {
   updatedAt DateTime @updatedAt
 
   @@map("user_tokens")
+}
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  action      String   // DELETE, UPDATE, CREATE, etc.
+  entity      String   // Skill, User, Swap, etc.
+  entityId    String   // ID of the entity being acted upon
+  details     String   // Description of what was done
+  status      String   @default("SUCCESS") // SUCCESS, FAILED
+  metadata    Json?    // Additional information
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
 }

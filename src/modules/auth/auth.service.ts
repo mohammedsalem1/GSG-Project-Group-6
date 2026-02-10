@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -12,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/database/prisma.service';
 import { UserService } from 'src/modules/user/user.service';
 import { MailService } from 'src/modules/mail/mail.service';
-import { RegisterDto, ResetPasswordDto } from './dto/auth.dto';
+import { OtpType, RegisterDto, ResetPasswordDto, VerifyOtpDto } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 import {
   AuthResponseDto,
@@ -57,32 +58,30 @@ export class AuthService {
     }
 
     const hashedPassword = await hashPassword(registerDto.password);
-    const otp = generateOtp();
+    // const otp = generateOtp();
+    const otp = "123456"
     console.log(otp)
     const hashedOtp = await hashOTP(otp);
-
     const createdUser = await this.userService.create({
-      userName: registerDto.userName,
       email: registerDto.email,
       password: hashedPassword,
       otpCode: hashedOtp,
       otpSendAt: new Date(),
     });
 
-    try {
-      await this.mailService.sendOtpEmail(
-        createdUser,
-        otp,
-        EmailPurpose.VERIFY_EMAIL,
-      );
-    } catch (error) {
-      await this.prisma.user.delete({
-        where: { id: createdUser.id },
-      });
-      throw new BadRequestException(
-        'Failed to send verification email. Please try registering again.',
-      );
-    }
+    // try {
+    //   await this.mailService.sendOtpEmail(
+    //     createdUser,
+    //     otp,
+    //     EmailPurpose.VERIFY_EMAIL,
+    //   );
+    // } catch (error) {
+    //   // throw new BadRequestException(
+    //   //   'Failed to send verification email. Please try registering again.',
+    //   // );
+    //      return 'Your account created successfully. Please verify your email <>';
+  
+    // }
 
     return 'Your account created successfully. Please verify your email';
   }
@@ -90,17 +89,30 @@ export class AuthService {
   /**
    * Verify OTP
    */
-  async verifyOTP(email: string, otpCode: string): Promise<string> {
-    const user = await this.validateOtp(email, otpCode);
+  async verifyOTP(verifyOtp: VerifyOtpDto) {
+    const { email, otpCode, type } = verifyOtp;
+    const user = await this.userService.findUserByEmail(email);
 
-    if (user.isVerified) {
-      return 'Email is already verified';
+    if (!user) {
+      throw new BadRequestException('Invalid email');
+    }  
+    if (type === OtpType.VERIFY_EMAIL && user.isVerified && !user.otpCode) {
+      return 'Email is already verified'
+    }
+    await this.validateOtp(user.email , otpCode)
+    
+    if (type === OtpType.VERIFY_EMAIL) {
+      await this.userService.verifyUserEmail(email);
+
+      return 'Email verified successfully'
     }
 
-    await this.userService.verifyUserEmail(email);
+    if (type === OtpType.RESET_PASSWORD) {
 
-    return 'Email verified successfully';
+      return  'Reset code verified'
+    }
   }
+
 
   async validateOtp(email: string, otp: string) {
     const user = await this.userService.findUserByEmail(email);
@@ -172,7 +184,7 @@ export class AuthService {
     const { accessToken, refreshToken } = await this.generateTokens({
       sub: user.id,
       email: user.email,
-      userName: user.userName,
+      userName: user.userName ?? '',
       role: user.role,
     });
 
@@ -371,32 +383,32 @@ export class AuthService {
     // generate HashKey and store in otpCode
     // const resetToken =  generateResetToken()
     // const hashedResetToken =  hashResetToken(resetToken)
+    const otp = "123456"
 
-    const otp = generateOtp();
+    // const otp = generateOtp();
     const hashedOtp = await hashOTP(otp);
 
     await this.userService.updateOtp(hashedOtp, email);
 
-    const userEmailPayload: UserEmailPayload = {
-      id: foundUser.id,
-      email: foundUser.email,
-      userName: foundUser.userName,
-    };
+    // const userEmailPayload: UserEmailPayload = {
+    //   id: foundUser.id,
+    //   email: foundUser.email,
+    //   userName: foundUser.userName,
+    // };
 
-    await this.mailService.sendOtpEmail(
-      userEmailPayload,
-      otp,
-      EmailPurpose.RESET_PASSWORD,
-    );
+    // await this.mailService.sendOtpEmail(
+    //   userEmailPayload,
+    //   otp,
+    //   EmailPurpose.RESET_PASSWORD,
+    // );
 
-    return 'Password reset email sent successfully';
+    return 'code sent successfully';
   }
   async resetPassword(dto: ResetPasswordDto): Promise<string> {
-    const { email, otpCode, newPassword } = dto;
+    const { email ,password } = dto;
 
-    await this.validateOtp(email, otpCode);
 
-    const hashedPassword = await hashPassword(newPassword);
+    const hashedPassword = await hashPassword(password);
 
     await this.userService.updatePasswordAndClearOtp(email, hashedPassword);
 

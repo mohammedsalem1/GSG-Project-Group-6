@@ -6,31 +6,24 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { GetReviewsReceivedDto } from './dto/get-review-received.dto';
 import { calculateAvgRating } from 'src/common/utils/rating.utils';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { SwapsService } from '../swaps/swaps.service';
 
 @Injectable()
 export class ReviewsService {
-    constructor(private readonly prismaService:PrismaService){}
+    constructor(
+      private readonly prismaService:PrismaService,
+      private readonly swapsService:SwapsService
+   ){}
 
     async createReview(createReviewDto:CreateReviewDto , reviewerId:string) {
-       // check the SwapRequest is exist
-       const swapRequest = await this.prismaService.swapRequest.findUnique({
-        where:{id:createReviewDto.swapRequestId},
-        include: { session: true }
-       })
 
-       if (!swapRequest) {
-          throw new BadRequestException('the swapRequest is not found')
-       }
-
+       const swapRequest = await this.swapsService.getRequestById(reviewerId ,createReviewDto.swapRequestId)
        if (!swapRequest.session  || swapRequest.session!.status !== SessionStatus.COMPLETED ) {
           throw new BadRequestException("you don't review because the session is not completed")
        }
     
-       if (swapRequest.requesterId !== reviewerId && swapRequest.receiverId !== reviewerId) {
-            throw new ForbiddenException('You are not part of this session');
-         }
 
-        const existingReview = await this.prismaService.review.findFirst({
+      const existingReview = await this.prismaService.review.findFirst({
            where: {  swapRequestId: createReviewDto.swapRequestId, reviewerId,
            },
         });
@@ -209,24 +202,5 @@ export class ReviewsService {
       return { message: 'Review flagged successfully' };
 }
 
-//     private  numberToRating = (value: number): Rating => {
-//       const ratingMap: Record<number, Rating> = {
-//         1: Rating.ONE,
-//         2: Rating.TWO,
-//         3: Rating.THREE,
-//         4: Rating.FOUR,
-//         5: Rating.FIVE,
-//     };
-//        return ratingMap[value] || 0;
-//   };
-//     private ratingToNumber = (rating: string): number => {
-//           const ratingMap: Record<string, number> = {
-//              ONE: 1,
-//              TWO: 2,
-//              THREE: 3,
-//              FOUR: 4,
-//              FIVE: 5,
-//       };
-//       return ratingMap[rating] || 0;
-//     };
+
 }

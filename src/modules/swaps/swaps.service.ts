@@ -19,6 +19,10 @@ import {
 import { PrismaService } from 'src/database/prisma.service';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { CreateSwapRequestDto, SwapRequestsQueryDto } from './dto/swaps.dto';
+import {
+  AdminSwapsListResponseDto,
+  AdminSwapsQueryDto,
+} from '../admin/dto/admin-swaps.dto';
 
 @Injectable()
 export class SwapsService {
@@ -584,5 +588,295 @@ export class SwapsService {
       rejected,
       acceptanceRate,
     };
+  }
+
+  /**
+   * Total completed swaps this week (for admin dashboard).
+   */
+  async getTotalSwapsCompletedThisWeek(): Promise<number> {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    return this.prismaService.swapRequest.count({
+      where: {
+        status: SwapStatus.COMPLETED,
+        updatedAt: { gte: startOfWeek, lt: endOfWeek },
+      },
+    });
+  }
+
+  /**
+   * Top skills by swap count in the given month (for admin dashboard).
+   */
+  async getTopSkillsBySwapCount(
+    year: number,
+    month: number,
+    limit: number,
+  ): Promise<{ skillName: string; swaps: number; percentage: number }[]> {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    const completed = await this.prismaService.swapRequest.findMany({
+      where: {
+        status: SwapStatus.COMPLETED,
+        updatedAt: { gte: start, lt: end },
+      },
+      include: {
+        offeredUserSkill: {
+          include: { skill: { select: { id: true, name: true } } },
+        },
+        requestedUserSkill: {
+          include: { skill: { select: { id: true, name: true } } },
+        },
+      },
+    });
+    const countBySkill: Record<string, number> = {};
+    let total = 0;
+    completed.forEach((s) => {
+      const offeredName = s.offeredUserSkill.skill.name;
+      const requestedName = s.requestedUserSkill.skill.name;
+      countBySkill[offeredName] = (countBySkill[offeredName] || 0) + 1;
+      countBySkill[requestedName] = (countBySkill[requestedName] || 0) + 1;
+      total += 2;
+    });
+    if (total === 0) {
+      return [];
+    }
+    const sorted = Object.entries(countBySkill)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+    return sorted.map(([skillName, swaps]) => ({
+      skillName,
+      swaps,
+      percentage: Math.round((swaps / total) * 100),
+    }));
+  }
+
+  /**
+   * Admin: Get all swaps with pagination, filtering, and sorting
+   */
+  async getAllSwapsForAdmin(
+    query: AdminSwapsQueryDto,
+  ): Promise<AdminSwapsListResponseDto> {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sort = 'newest',
+      startDate,
+      endDate,
+    } = query;
+
+    const pagination = this.prismaService.handleQueryPagination({
+      page,
+      limit,
+    });
+
+    const whereClause: any = {};
+
+    if (status) {
+      whereClause.status = status;
+    }
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      whereClause.createdAt = {
+        gte: start,
+        lte: end,
+      };
+    }
+
+    // Get swaps with all related data
+    const swaps = await this.prismaService.swapRequest.findMany({
+      where: whereClause,
+      include: {
+        requester: {
+          select: {
+            id: true,
+            userName: true,
+            image: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            userName: true,
+            image: true,
+          },
+        },
+        offeredUserSkill: {
+          select: {
+            skill: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        requestedUserSkill: {
+          select: {
+            skill: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: sort === 'newest' ? 'desc' : 'asc',
+      },
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+
+    // Format swap data
+    const data = swaps.map((swap) => ({
+      id: swap.id,
+      sender: {
+        id: swap.requester.id,
+        userName: swap.requester.userName ?? '',
+        image: swap.requester.image,
+      },
+      receiver: {
+        id: swap.receiver.id,
+        userName: swap.receiver.userName ?? '',
+        image: swap.receiver.image,
+      },
+      requestType: swap.message ? 'Free Session' : 'Skill Swap',
+      requestedSkill: {
+        id: swap.requestedUserSkill.skill.id,
+        name: swap.requestedUserSkill.skill.name,
+      },
+      offeredSkill: swap.offeredUserSkill
+        ? {
+            id: swap.offeredUserSkill.skill.id,
+            name: swap.offeredUserSkill.skill.name,
+          }
+        : null,
+      status: swap.status,
+      dateTime: swap.startAt,
+    }));
+
+    // Get summary counts
+    const [acceptedCount, pendingCount, rejectedCount] = await Promise.all([
+      this.prismaService.swapRequest.count({
+        where: { status: 'ACCEPTED' },
+      }),
+      this.prismaService.swapRequest.count({
+        where: { status: 'PENDING' },
+      }),
+      this.prismaService.swapRequest.count({
+        where: { status: 'DECLINED' },
+      }),
+    ]);
+
+    // Get total count
+    const total = await this.prismaService.swapRequest.count({
+      where: whereClause,
+    });
+
+    return {
+      data,
+      summary: {
+        accepted: acceptedCount,
+        pending: pendingCount,
+        rejected: rejectedCount,
+      },
+      total,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * Admin: Export swaps as CSV
+   */
+  async exportSwapsAsCSV(swapIds: string[]) {
+    const swaps = await this.prismaService.swapRequest.findMany({
+      where: {
+        id: { in: swapIds },
+      },
+      include: {
+        requester: {
+          select: {
+            id: true,
+            userName: true,
+            email: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            userName: true,
+            email: true,
+          },
+        },
+        offeredUserSkill: {
+          select: {
+            skill: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        requestedUserSkill: {
+          select: {
+            skill: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Create CSV headers
+    const headers = [
+      'ID',
+      'Sender',
+      'Receiver',
+      'Request Type',
+      'Offered Skill',
+      'Requested Skill',
+      'Status',
+      'Date',
+      'Start Time',
+      'End Time',
+      'Timezone',
+      'Created At',
+    ];
+
+    // Create CSV rows
+    const rows = swaps.map((swap) => [
+      swap.id,
+      swap.requester.userName,
+      swap.receiver.userName,
+      swap.message ? 'Free Session' : 'Skill Swap',
+      swap.offeredUserSkill?.skill?.name || '-',
+      swap.requestedUserSkill?.skill?.name || '-',
+      swap.status,
+      swap.date.toISOString().split('T')[0],
+      swap.startAt.toISOString().split('T')[1].substring(0, 5),
+      swap.endAt.toISOString().split('T')[1].substring(0, 5),
+      swap.timezone,
+      swap.createdAt.toISOString(),
+    ]);
+
+    // Build CSV string
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    return Buffer.from(csvContent, 'utf-8');
   }
 }

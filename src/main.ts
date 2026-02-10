@@ -24,7 +24,7 @@ async function bootstrap() {
     }),
   );
 
-  // Global filters
+  // Global filters - order matters, specific filters first, then catch-all
   app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
 
   // Global interceptors

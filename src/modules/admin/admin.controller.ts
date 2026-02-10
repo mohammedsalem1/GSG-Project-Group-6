@@ -53,7 +53,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 @ApiTags('admin')
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-// @Roles(Role.ADMIN)
+@Roles(Role.ADMIN)
 @ApiBearerAuth('JWT-auth')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}

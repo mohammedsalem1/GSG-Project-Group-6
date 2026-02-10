@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import appConfig from './config/app.config';
@@ -14,6 +15,8 @@ import imagekitConfig from './config/imagekit.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SwapsModule } from './modules/swaps/swaps.module';
 import { SessionModule } from './modules/session/session.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -31,8 +34,15 @@ import { SessionModule } from './modules/session/session.module';
     ReviewsModule,
     FeedbackModule,
     SessionModule,
+    AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+  ],
 })
 export class AppModule {}

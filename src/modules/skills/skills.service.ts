@@ -1,44 +1,70 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
-import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
-import { Prisma, Rating } from '@prisma/client';
+import {
+  CategoryResponseDto,
+  CategorySkillsDto,
+  FilterSkillDto,
+  PopularSkillResponseDto,
+  SearchSkillDto,
+  SearchUserSkillResponseDto,
+  UserSkillDetailsResponseDto,
+} from './dto/skills.dto';
+import { Prisma } from '@prisma/client';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { FeedbackService } from '../feedback/feedback.service';
-
+import {
+  AdminSkillsListResponseDto,
+  AdminSkillListItemDto,
+  AdminSkillDetailsDto,
+  AdminSkillsQueryDto,
+} from '../admin/dto/admin-skills.dto';
 
 @Injectable()
 export class SkillsService {
-   constructor(
-      private readonly prismaService :PrismaService,
-      private readonly feedbackService :FeedbackService
-   ) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly feedbackService: FeedbackService,
+  ) {}
 
-   async getAllCategories():Promise<CategoryResponseDto[]> {
-      return await this.prismaService.category.findMany({
-        where:{isActive:true} ,
-        select:{
-            id:true , 
-            name:true,
-            icon:true,
-            description:true
-        }
-      })
-   }
-   async getSkillsByCategory(categoryId:string): Promise<CategorySkillsDto> {
-      const category = await this.prismaService.category.findUnique({
-        where: {id:categoryId} , 
-        select :{id:true , name:true, isActive:true ,  skills: {where:{isActive:true},select:{id:true , name: true , isActive:true}}}
-      })
-      
-      if (!category || !category.isActive) {
-          throw new NotFoundException('Not found Category')
-      }
-      if (category.skills.length === 0) {
-          throw new NotFoundException('No skills found for this category');
-      }
-      return category
-   }
-   async searchSkills(query: SearchSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>>  {
+  async getAllCategories(): Promise<CategoryResponseDto[]> {
+    return await this.prismaService.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        description: true,
+      },
+    });
+  }
+  async getSkillsByCategory(categoryId: string): Promise<CategorySkillsDto> {
+    const category = await this.prismaService.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        skills: {
+          where: { isActive: true },
+          select: { id: true, name: true, isActive: true },
+        },
+      },
+    });
+
+    if (!category || !category.isActive) {
+      throw new NotFoundException('Not found Category');
+    }
+    if (category.skills.length === 0) {
+      throw new NotFoundException('No skills found for this category');
+    }
+    return category;
+  }
+ async searchSkills(query: SearchSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>>  {
   
       const searchName = query.name
       const pagination = this.prismaService.handleQueryPagination({
@@ -361,28 +387,249 @@ export class SkillsService {
    }}
     
   private ratingToNumber(rating: string): number {
-   const ratingMap: Record<string, number> = {
-    ONE: 1,
-    TWO: 2,
-    THREE: 3,
-    FOUR: 4,
-    FIVE: 5,
-  };
-  return ratingMap[rating] || 0;
+    const ratingMap: Record<string, number> = {
+      ONE: 1,
+      TWO: 2,
+      THREE: 3,
+      FOUR: 4,
+      FIVE: 5,
+    };
+    return ratingMap[rating] || 0;
   }
 
-   private calculateAvgRating(reviews: { overallRating: any }[]) {
-      const ratings = reviews.map(r => this.ratingToNumber(r.overallRating));
-      const avg =
-          ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+  private calculateAvgRating(reviews: { overallRating: any }[]) {
+    const ratings = reviews.map((r) => this.ratingToNumber(r.overallRating));
+    const avg =
+      ratings.length > 0
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+        : 0;
 
-       return {
-           averageRating: Math.round(avg * 10) / 10,
-           totalReviews: ratings.length,
-      };
- }
-   
+    return {
+      averageRating: Math.round(avg * 10) / 10,
+      totalReviews: ratings.length,
+    };
+  }
+
+  /**
+   * Admin: Get all skills with pagination, filtering, and sorting
+   */
+  async getAllSkillsForAdmin(
+    query: AdminSkillsQueryDto,
+  ): Promise<AdminSkillsListResponseDto> {
+    const { page = 1, limit = 10, search, sort = 'newest' } = query;
+
+    const pagination = this.prismaService.handleQueryPagination({
+      page,
+      limit,
+    });
+
+    const whereClause: any = {
+      isActive: true,
+    };
+
+    if (search) {
+      whereClause.name = { contains: search, mode: 'insensitive' };
+    }
+
+    // Get skills with filtering
+    const skills = await this.prismaService.skill.findMany({
+      where: whereClause,
+      include: {
+        users: {
+          where: { isOffering: true },
+          select: {
+            userId: true,
+            user: {
+              select: {
+                id: true,
+                userName: true,
+                image: true,
+                bio: true,
+              },
+            },
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: sort === 'newest' ? 'desc' : 'asc',
+      },
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+
+    // For each skill, get the request count and format the data
+    const skillListItems: AdminSkillListItemDto[] = await Promise.all(
+      skills.map(async (skill) => {
+        // Get the provider (first user offering this skill)
+        const offeringUserSkill = skill.users[0];
+
+        const provider = offeringUserSkill
+          ? {
+              id: offeringUserSkill.user.id,
+              userName: offeringUserSkill.user.userName ?? '',
+              image: offeringUserSkill.user.image ?? '',
+              bio: offeringUserSkill.user.bio ?? '',
+            }
+          : {
+              id: '',
+              userName: 'Unknown',
+              image: null,
+              bio: null,
+              level: 'BEGINNER',
+              sessionDuration: null,
+            };
+
+        // Count swap requests for this skill
+        const requestsCount = await this.prismaService.swapRequest.count({
+          where: {
+            OR: [
+              { offeredUserSkill: { skillId: skill.id } },
+              { requestedUserSkill: { skillId: skill.id } },
+            ],
+          },
+        });
+
+        return {
+          id: skill.id,
+          name: skill.name,
+          provider,
+          requestsCount,
+          createdAt: skill.createdAt,
+        };
+      }),
+    );
+
+    // Get total count
+    const total = await this.prismaService.skill.count({ where: whereClause });
+
+    return {
+      data: skillListItems,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * Admin: Get detailed information about a specific skill
+   */
+  async getSkillDetailsForAdmin(
+    skillId: string,
+  ): Promise<AdminSkillDetailsDto> {
+    const skill = await this.prismaService.skill.findUnique({
+      where: { id: skillId },
+      include: {
+        users: {
+          where: { isOffering: true },
+          select: {
+            userId: true,
+            level: true,
+            user: {
+              select: {
+                id: true,
+                userName: true,
+                image: true,
+                bio: true,
+              },
+            },
+            offeredInSwapRequests: {
+              select: {
+                session: {
+                  select: {
+                    duration: true,
+                  },
+                },
+              },
+              take: 1,
+            },
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!skill || !skill.isActive) {
+      throw new NotFoundException('Skill not found');
+    }
+
+    // Get the provider (first user offering this skill)
+    const offeringUserSkill = skill.users[0];
+
+    const provider = offeringUserSkill
+      ? {
+          id: offeringUserSkill.user.id,
+          userName: offeringUserSkill.user.userName ?? '',
+          image: offeringUserSkill.user.image,
+          bio: offeringUserSkill.user.bio,
+          level: offeringUserSkill.level,
+          sessionDuration:
+            offeringUserSkill.offeredInSwapRequests[0]?.session?.duration ||
+            null,
+        }
+      : {
+          id: '',
+          userName: 'Unknown',
+          image: null,
+          bio: null,
+          level: 'BEGINNER',
+          sessionDuration: null,
+        };
+
+    // Count swap requests for this skill
+    const requestsCount = await this.prismaService.swapRequest.count({
+      where: {
+        OR: [
+          { offeredUserSkill: { skillId: skill.id } },
+          { requestedUserSkill: { skillId: skill.id } },
+        ],
+      },
+    });
+
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      category: skill.category.name,
+      provider,
+      language: skill.language,
+      requestsCount,
+      createdAt: skill.createdAt,
+      updatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Admin: Delete a skill (soft delete by setting isActive to false)
+   */
+  async deleteSkillForAdmin(skillId: string): Promise<{ message: string }> {
+    const skill = await this.prismaService.skill.findUnique({
+      where: { id: skillId },
+    });
+
+    if (!skill) {
+      throw new NotFoundException('Skill not found');
+    }
+
+    if (!skill.isActive) {
+      throw new BadRequestException('Skill is already deleted');
+    }
+
+    await this.prismaService.skill.update({
+      where: { id: skillId },
+      data: { isActive: false },
+    });
+
+    return { message: 'Skill deleted successfully' };
+  }
 }
-
-  
-

@@ -446,3 +446,19 @@ model UserToken {
 
   @@map("user_tokens")
 }
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  action      String   // DELETE, UPDATE, CREATE, etc.
+  entity      String   // Skill, User, Swap, etc.
+  entityId    String   // ID of the entity being acted upon
+  details     String   // Description of what was done
+  status      String   @default("SUCCESS") // SUCCESS, FAILED
+  metadata    Json?    // Additional information
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}

@@ -741,12 +741,12 @@ export class SwapsService {
       id: swap.id,
       sender: {
         id: swap.requester.id,
-        userName: swap.requester.userName,
+        userName: swap.requester.userName ?? '',
         image: swap.requester.image,
       },
       receiver: {
         id: swap.receiver.id,
-        userName: swap.receiver.userName,
+        userName: swap.receiver.userName ?? '',
         image: swap.receiver.image,
       },
       requestType: swap.message ? 'Free Session' : 'Skill Swap',

@@ -21,7 +21,9 @@ export class AdminSessionUserDto {
 
   @ApiProperty({ description: 'Username' })
   @IsString()
-  userName: string;
+  @IsOptional()
+
+  userName: string | null;
 
   @ApiProperty({ description: 'User profile image', nullable: true })
   @IsOptional()

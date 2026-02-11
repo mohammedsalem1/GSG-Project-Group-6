@@ -342,7 +342,7 @@ export class SkillsService {
     const skills = await this.prismaService.skill.findMany({
       select: { id: true, name: true, _count: { select: { users: true } } },
       orderBy: { users: { _count: 'desc' } },
-      take: 20,
+      take: 10,
     });
 
     if (!skills.length) throw new NotFoundException('No skills found');

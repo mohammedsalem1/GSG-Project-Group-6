@@ -12,9 +12,10 @@ import {
   PopularSkillResponseDto,
   SearchSkillDto,
   SearchUserSkillResponseDto,
+  SkillDto,
   UserSkillDetailsResponseDto,
 } from './dto/skills.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, Skill } from '@prisma/client';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { FeedbackService } from '../feedback/feedback.service';
 import {
@@ -30,7 +31,36 @@ export class SkillsService {
     private readonly prismaService: PrismaService,
     private readonly feedbackService: FeedbackService,
   ) {}
+  async findOrCreateSkill(name: string, description?: string, language?: string): Promise<{ skill: Skill; alreadyExists: boolean }> {
+    let alreadyExists = true
+    const category = await this.prismaService.category.findFirst({
+      where: { name: 'Others', isActive: true },
+    });
+    if (!category) {
+      throw new NotFoundException('Default category "Others" not found. Please create it first.');
+    }
 
+    let skill = await this.prismaService.skill.findFirst({
+         where: { name: { equals: name.trim(), mode: 'insensitive' } },
+    });
+    if (!skill) {
+      alreadyExists = false
+      skill = await this.prismaService.skill.create({
+        data: {
+          name,
+          description,
+          language: language || 'English',
+          categoryId: category.id,
+          isActive: true,
+        },
+      });
+    }
+
+    return {skill , alreadyExists};
+  }
+  async getAllSkills(): Promise<SkillDto[]> {
+    return this.prismaService.skill.findMany({ where: { isActive: true }, select:{id:true , name:true} })
+  };
   async getAllCategories(): Promise<CategoryResponseDto[]> {
     return await this.prismaService.category.findMany({
       where: { isActive: true },
@@ -64,6 +94,22 @@ export class SkillsService {
     }
     return category;
   }
+  async autocomplete(name?: string) {
+  if (!name) return [];
+
+  return await this.prismaService.skill.findMany({
+    where: {
+      name: { contains: name.trim(), mode: 'insensitive' },
+      isActive: true,
+      },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+  }
+
  async searchSkills(query: SearchSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>>  {
   
       const searchName = query.name

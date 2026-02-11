@@ -169,7 +169,7 @@ model Skill {
   sessions Session[]
 
   createdAt DateTime @default(now())
-
+  @@unique([categoryId,name])
   @@map("skills")
 }
 

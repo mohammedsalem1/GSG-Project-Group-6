@@ -31,32 +31,30 @@ export class SkillsService {
     private readonly prismaService: PrismaService,
     private readonly feedbackService: FeedbackService,
   ) {}
-  async findOrCreateSkill(name: string, description?: string, language?: string): Promise<{ skill: Skill; alreadyExists: boolean }> {
-    let alreadyExists = true
+  
+  // ======= SKILL CREATION / SEARCH =======
+  async findOrCreateSkill(name: string, description?: string, language = 'English') {
+    const category = await this.getDefaultCategory();
+    let skill = await this.prismaService.skill.findFirst({
+      where: { name: { equals: name.trim(), mode: 'insensitive' } },
+    });
+
+    if (!skill) {
+      skill = await this.prismaService.skill.create({
+        data: { name, description, language, categoryId: category.id, isActive: true },
+      });
+      return { skill, alreadyExists: false };
+    }
+
+    return { skill, alreadyExists: true };
+  }
+
+  private async getDefaultCategory() {
     const category = await this.prismaService.category.findFirst({
       where: { name: 'Others', isActive: true },
     });
-    if (!category) {
-      throw new NotFoundException('Default category "Others" not found. Please create it first.');
-    }
-
-    let skill = await this.prismaService.skill.findFirst({
-         where: { name: { equals: name.trim(), mode: 'insensitive' } },
-    });
-    if (!skill) {
-      alreadyExists = false
-      skill = await this.prismaService.skill.create({
-        data: {
-          name,
-          description,
-          language: language || 'English',
-          categoryId: category.id,
-          isActive: true,
-        },
-      });
-    }
-
-    return {skill , alreadyExists};
+    if (!category) throw new NotFoundException('Default category "Others" not found');
+    return category;
   }
   async getAllSkills(): Promise<SkillDto[]> {
     return this.prismaService.skill.findMany({ where: { isActive: true }, select:{id:true , name:true} })
@@ -339,25 +337,18 @@ export class SkillsService {
   };
    }
 
-   async getPopularSkill():Promise<PopularSkillResponseDto[]>{
-     const skills = await this.prismaService.skill.findMany({
-       select: {id:true , name:true , _count:{select:{users:true}}},
-       orderBy: {users:{_count:'desc'}},
-       take:20
-     })
+    // ======= POPULAR SKILLS =======
+  async getPopularSkill() {
+    const skills = await this.prismaService.skill.findMany({
+      select: { id: true, name: true, _count: { select: { users: true } } },
+      orderBy: { users: { _count: 'desc' } },
+      take: 20,
+    });
 
-       if (skills.length === 0) {
-          throw new NotFoundException('No skills found');
-         }
-       return skills.map((skill) => ({
-           skill: {
-              id: skill.id,
-              name: skill.name,
-            },
-          usersCount:skill._count.users
+    if (!skills.length) throw new NotFoundException('No skills found');
 
-     }))
-   } 
+    return skills.map((skill) => ({ skill: { id: skill.id, name: skill.name }, usersCount: skill._count.users }));
+  }
   async getRecommendedUserSkills(userId: string) {
      const ids = await this.getUserCategories(userId);
      if (!ids.length) {

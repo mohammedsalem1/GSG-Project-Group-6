@@ -233,7 +233,7 @@ export class SkillsService {
                   image: true,
                   reviewsReceived: {
                     select: {
-                      overallRating: true,
+                      comment: true,
                     },
                   },
                 },
@@ -260,7 +260,6 @@ export class SkillsService {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
                 select: {
-                  overallRating: true,
                   comment: true,
                   reviewer: {
                     select: {

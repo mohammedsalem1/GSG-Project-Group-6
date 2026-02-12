@@ -1,18 +1,21 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { session } from 'passport';
-import { Rating, SessionStatus } from '@prisma/client';
+import { PointType, Rating, SessionStatus } from '@prisma/client';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { GetReviewsReceivedDto } from './dto/get-review-received.dto';
 import { calculateAvgRating } from 'src/common/utils/rating.utils';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { SwapsService } from '../swaps/swaps.service';
+import { GamificationService } from '../gamification/gamification.service';
 
 @Injectable()
 export class ReviewsService {
     constructor(
       private readonly prismaService:PrismaService,
-      private readonly swapsService:SwapsService
+      private readonly swapsService:SwapsService,
+      private readonly gamificationService:GamificationService
+
    ){}
 
     async createReview(createReviewDto:CreateReviewDto , reviewerId:string) {
@@ -35,30 +38,38 @@ export class ReviewsService {
        const reviewedId = swapRequest.requesterId === reviewerId ? swapRequest.receiverId : swapRequest.requesterId
        const userSkillId = swapRequest.requesterId === reviewerId ?
           swapRequest.requestedUserSkillId : swapRequest.offeredUserSkillId;
-     
-      return await this.prismaService.review.create({
-            data :{
-                swapRequestId:createReviewDto.swapRequestId,
-                reviewedId,
-                reviewerId,
-                userSkillId,
-                comment: createReviewDto.comment? createReviewDto.comment:null ,
-                isPublic: createReviewDto.isPublic ?? true,
-            } , 
-              include: {
-               reviewer: {
-                  select: { id: true, userName: true, image: true }} ,
-               reviewed: {
-                  select: { id: true, userName: true, image: true }   
-               },
-               userSkill: {
-                  select: { skill: true } 
-               }
-        }})
-       
-        
-    }
-    
+         
+      return await this.prismaService.$transaction(async (tx) => {
+      // 1️⃣ Create review
+      const review = await tx.review.create({
+         data: {
+            swapRequestId: createReviewDto.swapRequestId,
+            reviewedId,
+            reviewerId,
+            userSkillId,
+            comment: createReviewDto.comment ?? null,
+            isPublic: createReviewDto.isPublic ?? true,
+         },
+         include: {
+            reviewer: {
+            select: { id: true, userName: true, image: true },
+            },
+            reviewed: {
+            select: { id: true, userName: true, image: true },
+            },
+            userSkill: {
+            select: { skill: true },
+            },
+         },
+      });
+
+      await this.gamificationService.awardPoints(
+         reviewerId,5, 'add review', PointType.EARNED   
+      );
+
+      return review;
+      });
+   }
    //  async getUserReviewsGiven(userId:string ,  query:getReviewsReceivedDto) {
    //     return await this.prismaService.review.findMany({
    //       where: {reviewedId:userId},

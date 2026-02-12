@@ -17,6 +17,7 @@ import { SwapsModule } from './modules/swaps/swaps.module';
 import { SessionModule } from './modules/session/session.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { GamificationModule } from './modules/gamification/gamification.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     FeedbackModule,
     SessionModule,
     AdminModule,
+    GamificationModule,
   ],
   controllers: [AppController],
   providers: [

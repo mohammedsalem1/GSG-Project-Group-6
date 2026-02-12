@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { BadgeCategory, PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -175,6 +175,65 @@ async function main() {
   }
 
   console.log('✅ 1000+ Realistic skills seed completed');
+
+    console.log('🏆 Creating badges...');
+
+  const badges = [
+    {
+      name: 'First Exchange',
+      description: 'Unlocked after 1 completed session',
+      icon: '🎯',
+      category: BadgeCategory.ACHIEVEMENT,
+      requirement: '1',
+      points: 50,
+    },
+    {
+      name: 'Active Member',
+      description: 'Unlocked after 10 completed sessions',
+      icon: '🌟',
+      category: BadgeCategory.ACHIEVEMENT,
+      requirement: '10',
+      points: 75,
+    },
+    {
+      name: 'Skill Exchanger',
+      description: 'Unlocked after 25 completed sessions',
+      icon: '🔄',
+      category: BadgeCategory.ACHIEVEMENT,
+      requirement: '25',
+      points: 100,
+    },
+    {
+      name: 'Experienced',
+      description: 'Unlocked after 50 completed sessions',
+      icon: '⚡',
+      category: BadgeCategory.SPECIAL,
+      requirement: '50',
+      points: 150,
+    },
+    {
+      name: 'Core Contributor',
+      description: 'Unlocked after 80 completed sessions',
+      icon: '👑',
+      category: BadgeCategory.SPECIAL,
+      requirement: '80',
+      points: 200,
+    },
+  ]
+    for (const badge of badges) {
+    await prisma.badge.create({
+      data:{ 
+          name: badge.name,
+          description: badge.description,
+          icon: badge.icon,
+          category: badge.category,
+          requirement: badge.requirement,
+          points: badge.points,
+      }
+    });
+  } 
+    console.log(`✅ ${badges.length} badges created seed completed`);
+
 }
 
 main()

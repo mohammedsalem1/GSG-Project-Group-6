@@ -72,6 +72,23 @@ export class VerifyOtpDto {
   @IsNotEmpty()
   type: OtpType;
 }
+
+export class ResendOtpDto {
+  @ApiProperty({ example: 'mohammed@gmail.com' })
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({
+    example: OtpType.VERIFY_EMAIL,
+    description: `Type of OTP. Allowed values:
+         - VERIFY_EMAIL
+         - RESET_PASSWORD`,
+   })
+  @IsEnum(OtpType)
+  @IsNotEmpty()
+  type: OtpType;
+}
 export class ForgotPasswordDto {
   @ApiProperty({ example: 'mohammed@gmail.com' })
   @IsNotEmpty()

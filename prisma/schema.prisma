@@ -110,7 +110,7 @@ model User {
   location      String?
   timezone      String        @default("UTC")
   availability  Availability?
-  isActive      Boolean       @default(true)
+  isActive      Boolean       @default(true) // use in forgot & reset Password
   isVerified    Boolean       @default(false)
   otpCode       String? 
   otpSendAt     DateTime?      @default(now())

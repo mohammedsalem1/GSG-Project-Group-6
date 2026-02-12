@@ -130,7 +130,7 @@ export class AuthService {
     }
   }
 
-
+ //
   async validateOtp(email: string, otp: string) {
     const user = await this.userService.findUserByEmail(email);
 

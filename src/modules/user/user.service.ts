@@ -121,7 +121,12 @@ export class UserService {
 
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({
-      where: { id: userId },
+         where: { id: userId },
+         include: {
+          hostedSessions: { where: { status: 'COMPLETED' } },
+          attendedSessions: { where: { status: 'COMPLETED' } },
+          badges: { include: { badge: true }}
+         }
     });
 
     if (!user) {

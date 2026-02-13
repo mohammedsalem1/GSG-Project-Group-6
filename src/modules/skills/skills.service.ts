@@ -56,9 +56,12 @@ export class SkillsService {
     if (!category) throw new NotFoundException('Default category "Others" not found');
     return category;
   }
+
   async getAllSkills(): Promise<SkillDto[]> {
     return this.prismaService.skill.findMany({ where: { isActive: true }, select:{id:true , name:true} })
   };
+
+
   async getAllCategories(): Promise<CategoryResponseDto[]> {
     return await this.prismaService.category.findMany({
       where: { isActive: true },
@@ -70,6 +73,8 @@ export class SkillsService {
       },
     });
   }
+
+
   async getSkillsByCategory(categoryId: string): Promise<CategorySkillsDto> {
     const category = await this.prismaService.category.findUnique({
       where: { id: categoryId },
@@ -92,21 +97,23 @@ export class SkillsService {
     }
     return category;
   }
-  async autocomplete(name?: string) {
-  if (!name) return [];
 
-  return await this.prismaService.skill.findMany({
-    where: {
-      name: { contains: name.trim(), mode: 'insensitive' },
-      isActive: true,
-      },
-      take: 10,
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-  }
+
+  async autocomplete(name?: string) {
+    if (!name) return [];
+
+    return await this.prismaService.skill.findMany({
+      where: {
+        name: { contains: name.trim(), mode: 'insensitive' },
+        isActive: true,
+        },
+        take: 10,
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    }
 
  async searchSkills(query: SearchSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>>  {
   
@@ -233,7 +240,7 @@ export class SkillsService {
                   image: true,
                   reviewsReceived: {
                     select: {
-                      overallRating: true,
+                      comment: true,
                     },
                   },
                 },
@@ -260,7 +267,6 @@ export class SkillsService {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
                 select: {
-                  overallRating: true,
                   comment: true,
                   reviewer: {
                     select: {
@@ -399,6 +405,44 @@ export class SkillsService {
     return ids;
   }
   
+  async getOneSimilarUserBySkill(
+  skillId: string,
+  currentUserId: string,
+): Promise<{ data: SearchUserSkillResponseDto }> {
+
+  const userSkill = await this.prismaService.userSkill.findFirst({
+    where: {
+      skillId,
+      userId: { not: currentUserId },
+      user: { isActive: true },
+      isOffering:true
+    },
+    orderBy: { createdAt: 'asc' },
+    select: this.getUserSkillSelect(),
+  });
+
+  if (!userSkill) throw new NotFoundException('No similar user found');
+
+  const { rating, totalFeedbacks } =
+    await this.feedbackService.getUserRating(userSkill.user.id);
+
+  return {
+    data: {
+      skill: userSkill.skill,
+      user: {
+        userName: userSkill.user.userName ?? '',
+        image: userSkill.user.image,
+        level: userSkill.level,
+        bio: userSkill.user.bio,
+        receivedSwaps: userSkill.user._count.receivedSwaps,
+        sentSwaps: userSkill.user._count.sentSwaps,
+        rating,
+        totalFeedbacks,
+      },
+    },
+  };
+}
+
    private getUserSkillSelect() {
      return {
           level:true,

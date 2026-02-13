@@ -123,6 +123,7 @@ model User {
   messagesRecv  Message[]     @relation("Receiver")
   badges        UserBadge[]
   points        Point[]
+  
   tokens        UserToken[]
   notifications Notification[]
   hostedSessions   Session[]  @relation("Host")

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Get,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -24,6 +25,7 @@ import {
   AdminSkillDetailsDto,
   AdminSkillsQueryDto,
 } from '../admin/dto/admin-skills.dto';
+import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 
 @Injectable()
 export class SkillsService {
@@ -342,7 +344,18 @@ export class SkillsService {
     countSessions,
   };
    }
+   async getLearnedSkillsCount(userId:string) {
+      const sessions = await this.prismaService.session.findMany({
+        where: { attendeeId: userId, status: 'COMPLETED', skillId: { not: null } },
+        select: { skillId: true }, 
+      });
 
+      const uniqueSkills = Array.from(new Set(sessions.map(s => s.skillId)));
+
+      const count = uniqueSkills.length;
+      return {LearnedSkillCount:count}
+    }
+   
     // ======= POPULAR SKILLS =======
   async getPopularSkill() {
     const skills = await this.prismaService.skill.findMany({
@@ -355,6 +368,47 @@ export class SkillsService {
 
     return skills.map((skill) => ({ skill: { id: skill.id, name: skill.name }, usersCount: skill._count.users }));
   }
+
+  async getTrendingSkillsThisWeek() {
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const sessions = await this.prismaService.session.findMany({
+      where: {
+        skillId: { not: null },
+        createdAt: { gte: startOfWeek },
+        status: 'COMPLETED',
+      },
+      select: {
+        skillId: true,
+      },
+    });
+
+    const countMap = new Map<string, number>();
+
+    sessions.forEach(s => {
+      if (!s.skillId) return;
+      countMap.set(s.skillId, (countMap.get(s.skillId) || 0) + 1);
+    });
+
+    const trending = [...countMap.entries()]
+      .map(([skillId, count]) => ({ skillId, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // limit 10
+
+    const skills = await this.prismaService.skill.findMany({
+      where: { id: { in: trending.map(t => t.skillId) } },
+      select: { id: true, name: true },
+    });
+
+    return trending.map(t => ({
+      skillName: skills.find(s => s.id === t.skillId)?.name || 'Unknown',
+      learningCount: t.count,
+    }));
+  }
+
+
   async getRecommendedUserSkills(userId: string) {
      const ids = await this.getUserCategories(userId);
      if (!ids.length) {
@@ -388,7 +442,7 @@ export class SkillsService {
           return {
               data,
           }
-  }
+     }
 
   async getUserCategories(userId: string) {
     const user = await this.prismaService.user.findUnique({

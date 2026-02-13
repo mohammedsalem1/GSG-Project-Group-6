@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Availability, Prisma, SkillLevel } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsString, IsBoolean, IsUUID, IsOptional, IsArray, ValidateNested, IsNumber, IsEnum, ArrayNotEmpty } from 'class-validator';
+import { IsString, IsBoolean, IsUUID, IsOptional, IsArray, ValidateNested, IsNumber, IsEnum, ArrayNotEmpty, ArrayMinSize } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class CategoryResponseDto {
@@ -279,13 +279,14 @@ export class SessionDto {
 
 export class UpdateUserCategoriesDto {
   @ApiProperty({
-  isArray: true,
-  type: String,
-  format: 'uuid'
-})
-
+    isArray: true,
+    type: String,
+    format: 'uuid',
+    description: 'Minimum 3 categories must be selected',
+  })
   @IsArray()
-  @ArrayNotEmpty()
-  @IsUUID("all", { each: true })
+  @ArrayNotEmpty({ message: 'You must select at least 3 categories' })
+  @ArrayMinSize(3, { message: 'You must select at least 3 categories' })
+  @IsUUID("all", { each: true, message: 'Each category must be a valid UUID' })
   selectedCatIds: string[];
 }

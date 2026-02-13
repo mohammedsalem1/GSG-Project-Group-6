@@ -25,7 +25,7 @@ export class RegisterDto {
   @IsString()
   @MinLength(8)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
-    message: 'Password too weak',
+    message: 'The password consist numbers,small letter,capital latter and special char',
   })
   password: string;
 

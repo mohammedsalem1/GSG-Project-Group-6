@@ -11,6 +11,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { Skill } from '@prisma/client';
+import { TrendingSkillResponseDto } from './dto/trendingSkillResponse.dto';
 
 
 @ApiTags('skills')
@@ -193,31 +194,55 @@ export class SkillsController {
   }
 
 
-@Get(':skillId/similar')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
-@ApiOperation({ summary: 'Get one similar user offering the same skill' })
-@ApiOkResponse({
-  description: 'Get one similar user successfully',
-  type: SearchUserSkillResponseDto,
-})
-@ApiUnauthorizedResponse({ description: 'Unauthorized' })
-@ApiNotFoundResponse({ description: 'Skill not found or no similar users' })
-@ApiParam({
-  name: 'skillId',
-  description: 'Skill ID',
-  required: true,
-})
-@ApiInternalServerErrorResponse({ description: 'Internal server error' })
-async getSimilarUserBySkill(
-  @Param('skillId') skillId: string,
-  @CurrentUser() user:RequestUser
-): Promise<{ data: SearchUserSkillResponseDto }> {
-  const currentUserId = user.id;
-  return this.skillService.getOneSimilarUserBySkill(
-    skillId,
-    currentUserId,
-  );
-}
+    @Get(':skillId/similar')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Get one similar user offering the same skill' })
+    @ApiOkResponse({
+      description: 'Get one similar user successfully',
+      type: SearchUserSkillResponseDto,
+    })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+    @ApiNotFoundResponse({ description: 'Skill not found or no similar users' })
+    @ApiParam({
+      name: 'skillId',
+      description: 'Skill ID',
+      required: true,
+    })
+    @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+    async getSimilarUserBySkill(
+      @Param('skillId') skillId: string,
+      @CurrentUser() user:RequestUser
+    ): Promise<{ data: SearchUserSkillResponseDto }> {
+      const currentUserId = user.id;
+      return this.skillService.getOneSimilarUserBySkill(
+        skillId,
+        currentUserId,
+      );
+    }
+    
 
+  // trending skill
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Get('trending')
+    @ApiOperation({ summary: 'Get trending skills this week based on sessions' })
+    @ApiOkResponse({
+      description: 'Trending skills by sessions retrieved successfully',
+      type: TrendingSkillResponseDto , 
+    })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+    @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+    async getTrendingSkillsThisWeek(): Promise<TrendingSkillResponseDto[]> {
+      return await this.skillService.getTrendingSkillsThisWeek();    
+    }
+    
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Get('learned-skills')
+    @ApiOperation({ summary: 'get learned skill count' })
+    async getLearnedSkillsCount(@CurrentUser() user:RequestUser) {
+      return await this.skillService.getLearnedSkillsCount(user.id);
+    }
 } 

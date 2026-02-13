@@ -141,7 +141,11 @@ export class UserSkillDetailsResponseDto {
   @ApiProperty()
   @IsString()
   level: string;
-
+ 
+  @ApiProperty()
+  @IsNumber()
+  sessionDuration: number;
+  
 
   @ApiProperty()
   @IsString()

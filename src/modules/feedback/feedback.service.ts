@@ -88,7 +88,7 @@ export class FeedbackService {
           feedback.sessionStructure,
           feedback.communication,
           feedback.openToFeedback,
-        ].filter((v): v is number => typeof v === 'number');
+        ].filter((v): v is number => typeof v === 'number' && v !== 0);
 
         if (scores.length === 0) return null;
 

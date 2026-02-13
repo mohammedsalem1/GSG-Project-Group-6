@@ -325,7 +325,7 @@ export class SkillsService {
       totalFeedbacks
     },
     skill: userSkill.skill,
-
+    sessionDuration:sessions[0]?.duration ?? 60,  
     level: userSkill.level,
     userSkillId:userSkill.id,
     reviews: {

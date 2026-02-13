@@ -155,6 +155,7 @@ export class UserService {
         isVerified: true,
         createdAt: true,
         updatedAt: true,
+        badges:true,
         skills: {
           select: {
             id: true,

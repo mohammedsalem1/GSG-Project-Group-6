@@ -73,8 +73,7 @@ export class SkillsController {
    @Get('autocomplete')
    @UseGuards(JwtAuthGuard)
    @ApiBearerAuth('JWT-auth')
-      @HttpCode(HttpStatus.OK)
-
+   @HttpCode(HttpStatus.OK)
    @ApiOperation({ summary: 'Search skills for autocomplete' })
    @ApiQuery({ name: 'name', required: false, description: 'Partial or full skill name', type: String })
    async autocomplete(@Query('name') name: string) {
@@ -115,6 +114,7 @@ export class SkillsController {
    async searchSkills(@Query() query:SearchSkillDto):Promise<PaginatedResponseDto<SearchUserSkillResponseDto>> {
         return this.skillService.searchSkills(query)
    }
+
 
    @Get('discover')
    @ApiOperation({ summary: 'Get all users who have this skill by filter skill'})
@@ -191,5 +191,33 @@ export class SkillsController {
   async getRecommendedUserSkills(@CurrentUser() user:RequestUser) {
    return this.skillService.getRecommendedUserSkills(user.id)
   }
+
+
+@Get(':skillId/similar')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ summary: 'Get one similar user offering the same skill' })
+@ApiOkResponse({
+  description: 'Get one similar user successfully',
+  type: SearchUserSkillResponseDto,
+})
+@ApiUnauthorizedResponse({ description: 'Unauthorized' })
+@ApiNotFoundResponse({ description: 'Skill not found or no similar users' })
+@ApiParam({
+  name: 'skillId',
+  description: 'Skill ID',
+  required: true,
+})
+@ApiInternalServerErrorResponse({ description: 'Internal server error' })
+async getSimilarUserBySkill(
+  @Param('skillId') skillId: string,
+  @CurrentUser() user:RequestUser
+): Promise<{ data: SearchUserSkillResponseDto }> {
+  const currentUserId = user.id;
+  return this.skillService.getOneSimilarUserBySkill(
+    skillId,
+    currentUserId,
+  );
+}
 
 } 

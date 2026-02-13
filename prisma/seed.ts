@@ -2,7 +2,6 @@ import { BadgeCategory, PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // حذف البيانات القديمة بالترتيب الصحيح
   await prisma.review.deleteMany({});
   await prisma.feedback.deleteMany({});
   await prisma.session.deleteMany({});

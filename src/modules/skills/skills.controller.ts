@@ -29,8 +29,7 @@ export class SkillsController {
   @ApiCreatedResponse({ description: 'Created Skill successfully'})
   @HttpCode(HttpStatus.CREATED)
   async findOrCreateSkill(@Body() dto: CreateSkillDto): Promise<{ skill: Skill; alreadyExists: boolean }> {
-    const { name, description, language } = dto;
-    return this.skillService.findOrCreateSkill(name, description, language);
+    return this.skillService.findOrCreateSkill(dto.name, dto.description);
   }
 
 

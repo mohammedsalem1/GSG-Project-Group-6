@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { Prisma, PointType, Badge } from '@prisma/client';
 import { UserBadgeWithBadge } from './types/userBadge.type';
@@ -119,36 +119,69 @@ export class GamificationService {
 
     let nextBadge: Badge | null = null;
 
-    const mappedBadges = badges.map(badge => {
-      const unlocked = ownedBadgeIds.has(badge.id);
 
-      if (!unlocked && !nextBadge) nextBadge = badge;
+    for (const badge of badges) {
+        if (!ownedBadgeIds.has(badge.id)) {
+          nextBadge = badge;
+          break;
+        }
+    }
 
-      const required = Number(badge.requirement);
+    const ownedBadges = badges
+      .filter(badge => ownedBadgeIds.has(badge.id))
+      .map(badge => {
+        const userBadge = userBadges.find(b => b.badgeId === badge.id);
 
-      const progress = Math.min(
-        Math.round((completedSessions / required) * 100),
-        100
-      );
-
-      return {
-        ...badge,
-        isUnlocked: unlocked,
-        unlockedAt: userBadges.find(b => b.badgeId === badge.id)?.unlockedAt,
-        isPinned: userBadges.find(b => b.badgeId === badge.id)?.isPinned ?? false,
-        progress,
-      };
-    });
-
-
-     if (!nextBadge && badges.length > 0) {
-         nextBadge = badges[badges.length - 1]; 
-      }
+        return {
+          ...badge,
+          isUnlocked: true,
+          unlockedAt: userBadge?.unlockedAt,
+          isPinned: userBadge?.isPinned ?? false,
+        };
+      });
 
     return {
       completedSessions,
       nextBadge,
-      badges: mappedBadges,
+      badges: ownedBadges,
     };
+  }
+
+  // Get All badges and totoal users
+  async getAllBadgesWithCount() {
+  const badges = await this.prismaService.badge.findMany({
+    where: { isActive: true },
+    orderBy: { requirement: 'asc' },
+    include: {
+      _count: {
+        select: {
+          users:true
+        },
+      },
+    },
+  });
+
+  return badges.map(badge => ({
+    ...badge,
+    totalUsers: badge._count.users,
+  }));
+  }
+  
+  async updateBadgeRequirement(
+    badgeId: string,
+    requirement: string,
+  ) {
+    const badge = await this.prismaService.badge.findUnique({
+      where: { id: badgeId },
+    });
+
+    if (!badge) {
+      throw new NotFoundException('Badge not found');
+    }
+
+    return this.prismaService.badge.update({
+      where: { id: badgeId },
+      data: { requirement },
+    });
   }
 }

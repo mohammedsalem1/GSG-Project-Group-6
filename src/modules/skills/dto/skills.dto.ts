@@ -278,13 +278,12 @@ export class SessionDto {
 
 
 export class UpdateUserCategoriesDto {
-  @ApiProperty({example:{
-  "selectedCatIds": [
+  @ApiProperty({example:[
     "e209a34c-3b8a-4a63-9bf7-4d40d942b684",
     "bbcf9e3a-3c46-4a3b-aa16-92c3a921e59d",
     "e05a1bfd-e94d-402b-9697-11c99ee0976c"  
   ]
-}})
+})
   @IsArray()
   @ArrayNotEmpty({ message: 'You must select at least 3 categories' })
   @ArrayMinSize(3, { message: 'You must select at least 3 categories' })

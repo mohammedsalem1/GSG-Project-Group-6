@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Req,
   Res,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -49,6 +50,8 @@ import type { RequestUser } from 'src/common/types/user.types';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
 import type { Request, Response } from 'express';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { Public } from '@prisma/client/runtime/library';
+import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -353,4 +356,25 @@ export class AdminController {
     res.setHeader('Content-Disposition', 'attachment; filename="swaps.csv"');
     res.send(file);
   }
+
+  @Get('badges')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({summary: 'Get all system badges with total users count'})
+  @ApiOkResponse({description: 'Badges retrieved successfully'})
+  async getAllBadges() {
+    return this.adminService.getAllBadgesWithCount();
+  }
+
+    // update badge requirment
+    @Patch(':badgeId/requirement')
+    @ApiOperation({ summary: 'Update badge requirement' })
+    @ApiParam({ name: 'badgeId', example: 'uuid-badge-id' })
+    @ApiOkResponse({ description: 'Requirement updated successfully'})
+    @ApiNotFoundResponse({description: 'the badge not found'})
+    async updateBadgeRequirement(
+      @Param('badgeId') badgeId: string,
+      @Body() dto: UpdateBadgeRequirementDto,
+    ) {
+          return this.adminService.updateBadgeRequirement(badgeId, dto.requirement);
+    }
 }

@@ -50,7 +50,7 @@ export class UserController {
   @Patch('me/categories')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update selected categories for current user' })
+  @ApiOperation({ summary: ' Onpoarding screen, selected categories for current user' })
   @ApiOkResponse({description: 'Selected categories updated successfully' ,   schema: {
       example: {
         success: true,

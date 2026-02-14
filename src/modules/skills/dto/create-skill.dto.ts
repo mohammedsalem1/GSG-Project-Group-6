@@ -11,8 +11,4 @@ export class CreateSkillDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: 'language skill', required: false })
-  @IsOptional()
-  @IsString()
-  language?: string;
 }

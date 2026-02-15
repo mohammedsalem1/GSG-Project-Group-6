@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Body, Injectable, Param, Patch } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { SwapsService } from '../swaps/swaps.service';
@@ -22,6 +22,9 @@ import {
 import { AdminAuditLogsListResponseDto } from './dto/admin-audit.dto';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { GamificationService } from '../gamification/gamification.service';
+import { ApiOperation, ApiParam } from '@nestjs/swagger';
+import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
 
 @Injectable()
 export class AdminService {
@@ -33,6 +36,7 @@ export class AdminService {
     private readonly skillsService: SkillsService,
     private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
+    private readonly gamificationService:GamificationService
   ) {}
 
   /**
@@ -200,5 +204,16 @@ export class AdminService {
    */
   async exportSessions(sessionIds: string[]) {
     return await this.sessionService.exportSessionsAsCSV(sessionIds);
+  }
+
+  /// get All badges in system and total user
+  async getAllBadgesWithCount() {
+     return await this.gamificationService.getAllBadgesWithCount()
+  }
+
+  // update badge requirment
+ 
+  async updateBadgeRequirement(badgeId: string , requirement: string,) {
+    return await this.gamificationService.updateBadgeRequirement(badgeId, requirement);
   }
 }

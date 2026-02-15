@@ -40,13 +40,12 @@ export class UserService {
       },
     });
   }
-    activateUserAfterReset(email: string) {
+    clearOtp(email: string) {
       return this.prismaService.user.update({
         where: { email },
         data: {
           otpCode: null,
           otpSendAt: null,
-          isActive:true
         },
       });
   }
@@ -60,16 +59,7 @@ export class UserService {
       },
     });
   }
-  async updateOtpAndDeactivate(email: string, hashedOtp: string) {
-    return this.prismaService.user.update({
-      where: { email },
-      data: {
-        otpCode: hashedOtp,
-        otpSendAt: new Date(),
-        isActive: false,
-      },
-    });
-}
+
   findUserByToken(token: string) {
     return this.prismaService.user.findFirst({
       where: {

@@ -124,8 +124,7 @@ export class AuthService {
        }
 
     if (type === OtpType.RESET_PASSWORD) {
-      await this.userService.activateUserAfterReset(email);
-
+      await this.userService.clearOtp(email)
       return  'Reset code verified'
     }
   }
@@ -405,7 +404,7 @@ export class AuthService {
     // const otp = generateOtp();
     const hashedOtp = await hashOTP(otp);
 
-    await this.userService.updateOtpAndDeactivate( email,hashedOtp);
+    await this.userService.updateOtp(hashedOtp , email);
 
     // const userEmailPayload: UserEmailPayload = {
     //   id: foundUser.id,
@@ -428,7 +427,7 @@ export class AuthService {
     
     if (!user) throw new NotFoundException('User not found');
     if (!user.isVerified) {throw new BadRequestException('user not verified');}
-    if (!user.isActive) throw new UnauthorizedException('Your account has been deactivated, OTP verification required');
+    if (!user.isActive) throw new UnauthorizedException('Your account has been deactivated');
 
     const hashedPassword = await hashPassword(password);
 

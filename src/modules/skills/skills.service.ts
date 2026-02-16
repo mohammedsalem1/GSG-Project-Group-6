@@ -26,6 +26,7 @@ import {
   AdminSkillsQueryDto,
 } from '../admin/dto/admin-skills.dto';
 import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import { SkillResponseDto } from './dto/create-skill.dto';
 
 @Injectable()
 export class SkillsService {
@@ -35,22 +36,29 @@ export class SkillsService {
   ) {}
   
   // ======= SKILL CREATION / SEARCH =======
-  async findOrCreateSkill(name: string, description?: string, language = 'English') {
+  async findOrCreateSkill(name: string) {
     const category = await this.getDefaultCategory();
+    
+    const trimmedName = name.trim();
+
     let skill = await this.prismaService.skill.findFirst({
       where: { name: { equals: name.trim(), mode: 'insensitive' } },
     });
 
-    if (!skill) {
-      skill = await this.prismaService.skill.create({
-        data: { name, description, language, categoryId: category.id, isActive: true },
-      });
-      return { skill, alreadyExists: false };
-    }
+     if (!skill) {
+      skill = await this.prismaService.skill.create({ data: { name: trimmedName, categoryId: category.id }});
 
-    return { skill, alreadyExists: true };
+      return {
+        skill: { skillId: skill.id, skillName: skill.name },
+        alreadyExists: false,
+      };
   }
 
+      return {
+        skill: { skillId: skill.id, skillName: skill.name },
+        alreadyExists: true,
+      };
+}
   private async getDefaultCategory() {
     const category = await this.prismaService.category.findFirst({
       where: { name: 'Others', isActive: true },

@@ -9,7 +9,7 @@ import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
-import { CreateSkillDto } from './dto/create-skill.dto';
+import { CreateSkillDto, SkillResponseDto } from './dto/create-skill.dto';
 import { Skill } from '@prisma/client';
 import { TrendingSkillResponseDto } from './dto/trendingSkillResponse.dto';
 
@@ -28,9 +28,10 @@ export class SkillsController {
   @ApiOperation({ summary: 'add skill from user'})
   @ApiCreatedResponse({ description: 'Created Skill successfully'})
   @HttpCode(HttpStatus.CREATED)
-  async findOrCreateSkill(@Body() dto: CreateSkillDto): Promise<{ skill: Skill; alreadyExists: boolean }> {
-    return this.skillService.findOrCreateSkill(dto.name, dto.description);
+  async findOrCreateSkill(@Body() dto: CreateSkillDto): Promise<{ skill:SkillResponseDto, alreadyExists: boolean }> {
+    return this.skillService.findOrCreateSkill(dto.name);
   }
+
 
 
   @Get()

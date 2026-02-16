@@ -1,14 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateSkillDto {
-  @ApiProperty({ description: 'name skill' })
+  @ApiProperty({ description: 'Skill name' })
   @IsString()
   name: string;
-
-  @ApiProperty({ description: 'description skill', required: false })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
 }
+export class SkillResponseDto {
+    @ApiProperty()
+    @IsUUID()
+    skillId: string;
+  
+    @ApiProperty()
+    @IsString()
+    skillName: string;
+  }
+  
+

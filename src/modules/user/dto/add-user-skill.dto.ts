@@ -23,6 +23,7 @@ export class AddUserSkillDto {
     example: SkillLevel.INTERMEDIATE,
     description: 'User proficiency level',
   })
+  @IsOptional()
   @IsEnum(SkillLevel, { message: 'Invalid skill level' })
   level: SkillLevel;
 

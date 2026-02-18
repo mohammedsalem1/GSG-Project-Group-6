@@ -185,7 +185,7 @@ export class SkillsService {
       const whereClause: Prisma.UserSkillWhereInput = {
          user: {  isActive: true,  ...(query.availability && { availability: query.availability })},
          ...(query.level && { level: query.level }),
-         ...(query.isOffering !== undefined && { isOffering: query.isOffering }),
+        //  ...(query.isOffering !== undefined && { isOffering: query.isOffering }),
 
          skill: { isActive: true, ...(query.language && { language: { contains: query.language }}),
   },
@@ -243,6 +243,8 @@ export class SkillsService {
             select: {
               id: true,
               level: true,
+              sessionLanguage:true,
+              skillDescription:true,
               user: {
                 select: {
                   userName: true,
@@ -258,8 +260,6 @@ export class SkillsService {
               skill: {
                 select: {
                   name: true,
-                  language: true,
-                  description: true,
                   category: {
                     select: {
                       id: true,
@@ -335,8 +335,10 @@ export class SkillsService {
       totalFeedbacks
     },
     skill: userSkill.skill,
-    sessionDuration:sessions[0]?.duration ?? 60,  
+    // sessionDuration:sessions[0]?.duration ?? 60,  
     level: userSkill.level,
+    sessionLanguage:userSkill.sessionLanguage ?? '',
+    skillDescription:userSkill.skillDescription?? '',
     userSkillId:userSkill.id,
     reviews: {
       count: userSkill._count.reviews,
@@ -509,8 +511,10 @@ export class SkillsService {
      return {
           level:true,
           yearsOfExperience: true,
+          sessionLanguage:true,
+          skillDescription:true,
           isOffering: true,
-          skill: {select: {id:true ,name:true , language:true , description:true , 
+          skill: {select: {id:true ,name:true , 
              category: {select:{id:true ,name:true , icon:true , description:true}}}} ,
           user : {
             select : {

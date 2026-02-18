@@ -35,9 +35,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
 import { Public } from '../auth/decorators/public.decorator';
-import { AddUserSkillDto, SearchUsersDto, UpdateUserDto } from './dto';
+import { AddUserSkillDto, UpdateUserDto } from './dto';
 import { ImageKitService } from './services/imagekit.service';
 import { UpdateUserCategoriesDto } from '../skills/dto/skills.dto';
+import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 
 @ApiTags('users')
 @Controller('user')
@@ -239,9 +240,9 @@ export class UserController {
   async removeUserSkill(
     @CurrentUser() user: RequestUser,
     @Param('skillId') skillId: string,
-    @Query('isOffering') isOffering: string,
+    // @Query('isOffering') isOffering: string,
   ) {
-    const isOfferingBool = isOffering === 'true';
+    const isOfferingBool = true;
     return this.userService.removeUserSkill(user.id, skillId, isOfferingBool);
   }
 
@@ -356,60 +357,97 @@ export class UserController {
   async getPublicUserProfile(@Param('id') userId: string) {
     return this.userService.getPublicUserProfile(userId);
   }
-
-  @Get('search')
-  @Public()
-  @ApiOperation({ summary: 'Search users with filters' })
-  @ApiOkResponse({
-    description: 'Users retrieved successfully',
+  
+  @Patch(':skillId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update a user skill (description, language, level, years of experience)' })
+  @ApiOkResponse({ description: 'User skill updated successfully',
     schema: {
       example: {
         success: true,
         data: {
-          users: [
-            {
-              id: 'user-id',
-              userName: 'johndoe',
-              bio: 'Passionate developer',
-              image: 'https://ik.imagekit.io/...',
-              country: 'Palestine',
-              location: 'Ramallah',
-              timezone: 'Asia/Jerusalem',
-              availability: 'FLEXIBLE',
-              createdAt: '2026-01-20T10:00:00.000Z',
-              skills: [
-                {
-                  id: 'skill-id',
-                  level: 'INTERMEDIATE',
-                  yearsOfExperience: 3,
-                  skill: {
-                    id: 'skill-id',
-                    name: 'JavaScript',
-                    category: {
-                      name: 'Programming',
-                      icon: '💻',
-                    },
-                  },
-                },
-              ],
-              _count: {
-                reviewsReceived: 4,
-              },
+          id: 'user-skill-id',
+          level: 'INTERMEDIATE',
+          yearsOfExperience: 3,
+          sessionLanguage: 'English',
+          skillDescription: 'Updated description for the skill',
+          isOffering: true,
+          createdAt: '2026-01-24T12:00:00.000Z',
+          skill: {
+            id: 'skill-id',
+            name: 'JavaScript',
+            description: 'Programming language',
+            category: {
+              id: 'category-id',
+              name: 'Programming',
+              icon: '💻',
             },
-          ],
-          pagination: {
-            total: 50,
-            page: 1,
-            limit: 10,
-            totalPages: 5,
-            hasNextPage: true,
-            hasPrevPage: false,
           },
         },
       },
     },
   })
-  async searchUsers(@Query() searchDto: SearchUsersDto) {
-    return this.userService.searchUsers(searchDto);
+  async editUserSkill(
+    @CurrentUser() user: RequestUser,
+    @Param('skillId') skillId: string,
+    @Body() dto: UpdateUserSkillDto
+  ) {
+    return this.userService.updateUserSkill(user.id, skillId, dto);
   }
+  // @Get('search')
+  // @Public()
+  // @ApiOperation({ summary: 'Search users with filters' })
+  // @ApiOkResponse({
+  //   description: 'Users retrieved successfully',
+  //   schema: {
+  //     example: {
+  //       success: true,
+  //       data: {
+  //         users: [
+  //           {
+  //             id: 'user-id',
+  //             userName: 'johndoe',
+  //             bio: 'Passionate developer',
+  //             image: 'https://ik.imagekit.io/...',
+  //             country: 'Palestine',
+  //             location: 'Ramallah',
+  //             timezone: 'Asia/Jerusalem',
+  //             availability: 'FLEXIBLE',
+  //             createdAt: '2026-01-20T10:00:00.000Z',
+  //             skills: [
+  //               {
+  //                 id: 'skill-id',
+  //                 level: 'INTERMEDIATE',
+  //                 yearsOfExperience: 3,
+  //                 skill: {
+  //                   id: 'skill-id',
+  //                   name: 'JavaScript',
+  //                   category: {
+  //                     name: 'Programming',
+  //                     icon: '💻',
+  //                   },
+  //                 },
+  //               },
+  //             ],
+  //             _count: {
+  //               reviewsReceived: 4,
+  //             },
+  //           },
+  //         ],
+  //         pagination: {
+  //           total: 50,
+  //           page: 1,
+  //           limit: 10,
+  //           totalPages: 5,
+  //           hasNextPage: true,
+  //           hasPrevPage: false,
+  //         },
+  //       },
+  //     },
+  //   },
+  // })
+  // async searchUsers(@Query() searchDto: SearchUsersDto) {
+  //   return this.userService.searchUsers(searchDto);
+  // }
 }

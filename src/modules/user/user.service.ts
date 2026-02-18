@@ -12,6 +12,8 @@ import { PrismaService } from 'src/database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AddUserSkillDto, SearchUsersDto } from './dto';
 import { FeedbackService } from '../feedback/feedback.service';
+import { Badge } from '@prisma/client';
+import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 
 @Injectable()
 export class UserService {
@@ -151,6 +153,8 @@ export class UserService {
             id: true,
             level: true,
             yearsOfExperience: true,
+            sessionLanguage:true,
+            skillDescription:true, 
             isOffering: true,
             skill: {
               select: {
@@ -227,8 +231,8 @@ export class UserService {
   }
 
   async addUserSkill(userId: string, addUserSkillDto: AddUserSkillDto) {
-    const { skillId, level, yearsOfExperience, isOffering } = addUserSkillDto;
-
+    const { skillId, level, yearsOfExperience, sessionLanguage , skillDescription} = addUserSkillDto;
+    const isOffering = true
     // Check if skill exists
     const skill = await this.prismaService.skill.findUnique({
       where: { id: skillId },
@@ -244,6 +248,7 @@ export class UserService {
         userId,
         skillId,
         isOffering,
+        isActive:true
       },
     });
 
@@ -261,6 +266,8 @@ export class UserService {
         level,
         yearsOfExperience: yearsOfExperience || null,
         isOffering,
+        sessionLanguage,
+        skillDescription,
       },
       include: {
         skill: {
@@ -274,46 +281,64 @@ export class UserService {
     return userSkill;
   }
 
+  // async removeUserSkill(userId: string, skillId: string, isOffering: boolean) {
+  //   const userSkill = await this.prismaService.userSkill.findFirst({
+  //     where: {
+  //       userId,
+  //       skillId,
+  //       isOffering,
+  //     },
+  //   });
+
+  //   if (!userSkill) {
+  //     throw new NotFoundException('User skill not found');
+  //   }
+
+  //   await this.prismaService.userSkill.delete({
+  //     where: { id: userSkill.id },
+  //   });
+
+  //   return { message: 'Skill removed successfully' };
+  // }
   async removeUserSkill(userId: string, skillId: string, isOffering: boolean) {
-    const userSkill = await this.prismaService.userSkill.findFirst({
-      where: {
-        userId,
-        skillId,
-        isOffering,
-      },
-    });
+  const userSkill = await this.prismaService.userSkill.findFirst({
+    where: {
+      userId,
+      skillId,
+      isOffering,
+      isActive: true, 
+    },
+  });
 
-    if (!userSkill) {
-      throw new NotFoundException('User skill not found');
-    }
-
-    await this.prismaService.userSkill.delete({
-      where: { id: userSkill.id },
-    });
-
-    return { message: 'Skill removed successfully' };
+  if (!userSkill) {
+    throw new NotFoundException('User skill not found or already removed');
   }
+
+  await this.prismaService.userSkill.update({
+    where: { id: userSkill.id },
+    data: { isActive: false },
+  });
+
+  return { message: 'Skill removed successfully (soft delete)' };
+}
+ 
 
   async getUserSkills(userId: string) {
     const skills = await this.prismaService.userSkill.findMany({
-      where: { userId },
+      where: { userId, isActive: true },
       include: {
-        skill: {
-          include: {
-            category: true,
-          },
-        },
+        skill:true
       },
       orderBy: [{ isOffering: 'desc' }, { createdAt: 'desc' }],
     });
 
     // Group by offering/wanted
     const offeredSkills = skills.filter((s) => s.isOffering);
-    const wantedSkills = skills.filter((s) => !s.isOffering);
+    // const wantedSkills = skills.filter((s) => !s.isOffering);
 
     return {
       offeredSkills,
-      wantedSkills,
+      // wantedSkills,
       total: skills.length,
     };
   }
@@ -339,6 +364,8 @@ export class UserService {
             level: true,
             yearsOfExperience: true,
             isOffering: true,
+            sessionLanguage:true,
+            skillDescription:true,
             skill: {
               select: {
                 id: true,
@@ -353,9 +380,10 @@ export class UserService {
                 },
               },
             },
+            
           },
         },
-
+        badges:true,
         // Include stats
         _count: {
           select: {
@@ -510,6 +538,27 @@ export class UserService {
       },
     };
   }
+
+
+async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) {
+  const userSkill = await this.prismaService.userSkill.findFirst({
+    where: { userId, skillId, isActive: true },
+  });
+
+  if (!userSkill) {
+    throw new NotFoundException('User skill not found');
+  }
+
+  const updated = await this.prismaService.userSkill.update({
+    where: { id: userSkill.id },
+    data: { ...dto },
+    include: {
+      skill: { include: { category: true } },
+    },
+  });
+
+  return updated;
+}
 
   /**
    * Get all users for admin (paginated). Keeps admin route but uses user service.

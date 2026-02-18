@@ -1,53 +1,52 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
   IsEnum,
-  IsBoolean,
-  IsInt,
-  Min,
-  Max,
   IsOptional,
+  IsInt,
 } from 'class-validator';
 import { SkillLevel } from '@prisma/client';
 
 export class AddUserSkillDto {
+
   @ApiProperty({
     example: 'uuid-of-skill',
     description: 'ID of the skill to add',
   })
-  @IsNotEmpty({ message: 'Skill ID is required' })
   @IsString()
+  @IsNotEmpty({ message: 'Skill ID is required' })
   skillId: string;
 
   @ApiProperty({
     enum: SkillLevel,
     example: SkillLevel.INTERMEDIATE,
-    description: 'Proficiency level in this skill',
+    description: 'User proficiency level',
   })
-  @IsNotEmpty({ message: 'Skill level is required' })
   @IsEnum(SkillLevel, { message: 'Invalid skill level' })
   level: SkillLevel;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 3,
-    description: 'Years of experience with this skill',
-    minimum: 0,
-    maximum: 50,
-    required: false,
+    description: 'Years of experience',
   })
   @IsOptional()
-  @IsInt({ message: 'Years of experience must be a whole number' })
-  @Min(0, { message: 'Years of experience cannot be negative' })
-  @Max(50, { message: 'Years of experience cannot exceed 50' })
+  @IsInt({ message: 'Years of experience must be a number' })
   yearsOfExperience?: number;
 
-  @ApiProperty({
-    example: true,
-    description: 'Whether user is offering to teach this skill',
-    default: true,
+  @ApiPropertyOptional({
+    example: 'Arabic',
+    description: 'Language used during the session',
   })
-  @IsNotEmpty({ message: 'Please specify if you are offering this skill' })
-  @IsBoolean()
-  isOffering: boolean;
+  @IsOptional()
+  @IsString({ message: 'Session language must be a string' })
+  sessionLanguage?: string;
+
+  @ApiPropertyOptional({
+    example: 'I focus on practical projects and real-world examples.',
+    description: 'How the user offers this skill',
+  })
+  @IsOptional()
+  @IsString({ message: 'Description must be a string' })
+  skillDescription?: string;
 }

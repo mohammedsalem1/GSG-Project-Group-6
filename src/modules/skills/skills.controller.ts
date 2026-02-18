@@ -22,15 +22,15 @@ export class SkillsController {
      private readonly skillService:SkillsService
   ) {}  
   
-  @Post('create')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'add skill from user'})
-  @ApiCreatedResponse({ description: 'Created Skill successfully'})
-  @HttpCode(HttpStatus.CREATED)
-  async findOrCreateSkill(@Body() dto: CreateSkillDto): Promise<{ skill:SkillResponseDto, alreadyExists: boolean }> {
-    return this.skillService.findOrCreateSkill(dto.name);
-  }
+  // @Post('create')
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth('JWT-auth')
+  // @ApiOperation({ summary: 'add skill from user'})
+  // @ApiCreatedResponse({ description: 'Created Skill successfully'})
+  // @HttpCode(HttpStatus.CREATED)
+  // async findOrCreateSkill(@Body() dto: CreateSkillDto): Promise<{ skill:SkillResponseDto, alreadyExists: boolean }> {
+  //   return this.skillService.findOrCreateSkill(dto.name);
+  // }
 
 
 

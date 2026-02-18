@@ -63,14 +63,14 @@ export class SkillInfoDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ nullable: true })
-  @IsOptional()
-  @IsString()
-  description: string | null;
+  // @ApiProperty({ nullable: true })
+  // @IsOptional()
+  // @IsString()
+  // description: string | null;
 
-  @ApiProperty()
-  @IsString()
-  language: string;
+  // @ApiProperty()
+  // @IsString()
+  // language: string;
 
   @ApiProperty()
   category:CategoryResponseDto 
@@ -141,10 +141,16 @@ export class UserSkillDetailsResponseDto {
   @ApiProperty()
   @IsString()
   level: string;
- 
+
   @ApiProperty()
-  @IsNumber()
-  sessionDuration: number;
+  @IsString()
+  sessionLanguage: string;
+
+
+  @ApiProperty()
+  @IsString()
+  skillDescription: string;
+
   
 
   @ApiProperty()
@@ -174,12 +180,12 @@ export class FilterSkillDto extends PaginationDto {
   @IsEnum(Availability)
   availability?: Availability;
 
-  @ApiPropertyOptional({ example: true })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true')
+  // @ApiPropertyOptional({ example: true })
+  // @IsOptional()
+  // @IsBoolean()
+  // @Transform(({ value }) => value === 'true')
 
-  isOffering?: boolean;
+  // isOffering?: boolean;
 
   @ApiPropertyOptional({ example: 'English' })
   @IsOptional()

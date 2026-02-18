@@ -10,12 +10,12 @@ export class RemoveUserSkillDto {
   @IsString()
   skillId: string;
 
-  @ApiProperty({
-    example: true,
-    description:
-      'Whether removing from offered skills (true) or wanted skills (false)',
-  })
-  @IsNotEmpty()
-  @IsBoolean()
-  isOffering: boolean;
+  // @ApiProperty({
+  //   example: true,
+  //   description:
+  //     'Whether removing from offered skills (true) or wanted skills (false)',
+  // })
+  // @IsNotEmpty()
+  // @IsBoolean()
+  // isOffering: boolean;
 }

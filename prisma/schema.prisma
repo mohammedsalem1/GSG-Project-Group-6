@@ -181,8 +181,11 @@ model UserSkill {
   skill             Skill       @relation(fields: [skillId], references: [id])
   skillId           String
   level             SkillLevel  @default(BEGINNER)
+  skillDescription  String?
   yearsOfExperience Int?
-  isOffering        Boolean
+  sessionLanguage     String?      @default("English")
+  isActive         Boolean      @default(true)
+  isOffering        Boolean     @default(true) 
 
   offeredInSwapRequests SwapRequest[] @relation("OfferedSkill")
   requestedInSwapRequests SwapRequest[] @relation("RequestedSkill")

@@ -15,7 +15,7 @@ import { CompleteSessionDto, GetSessionsQueryDto } from './dto';
 
 @Injectable()
 export class SessionService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService , ) {}
 
   /**
    * Get user's sessions (as host or attendee)
@@ -308,7 +308,7 @@ export class SessionService {
         prisma.point.create({
           data: {
             userId: session.hostId,
-            amount: 10,
+            amount: 50,
             reason: 'Completed session as host',
             type: 'EARNED',
           },
@@ -316,7 +316,7 @@ export class SessionService {
         prisma.point.create({
           data: {
             userId: session.attendeeId,
-            amount: 10,
+            amount: 50,
             reason: 'Completed session as attendee',
             type: 'EARNED',
           },
@@ -686,4 +686,58 @@ export class SessionService {
 
     return Buffer.from(csvContent, 'utf-8');
   }
+
+
+  
+  /// added Summary session completed
+  async getSessionSummary(userId: string, sessionId: string) {
+  const session = await this.prismaService.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) throw new NotFoundException();
+  if (session.status !== SessionStatus.COMPLETED)
+    throw new BadRequestException();
+
+  // 1️⃣ Duration
+    const durationMinutes = Number(session.duration)
+  console.log(durationMinutes)
+    const hours = Math.floor(durationMinutes / 60);   // 1
+  const minutes = durationMinutes % 60;  
+ 
+
+  const formattedDuration = `${hours}h ${minutes}m`;
+
+  // 2️⃣ Total sessions between both users
+  const totalSessions = await this.prismaService.session.count({
+    where: {
+      status: SessionStatus.COMPLETED,
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+
+  // 3️⃣ Total points for this user
+  const totalPoints = await this.prismaService.point.aggregate({
+    where: { userId },
+    _sum: { amount: true },
+  });
+
+  return {
+    session:session.id,
+    sessionDuration: formattedDuration,
+    totalSessions,
+    totalPoints: totalPoints._sum.amount || 0,
+    gainedPoints: 50,
+  };
+}
+
 }

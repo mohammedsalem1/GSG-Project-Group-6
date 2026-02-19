@@ -23,7 +23,7 @@ export class GamificationController {
             data: {
                 "newlyUnlocked": [],
                 "nextBadge": {
-                "id": "9e173baf-6b02-475c-bd6f-a28038a581b6",
+                "id": "badge-id",
                 "name": "First Exchange",
                 "description": "Unlocked after 1 completed session",
                 "icon": "🎯",
@@ -56,7 +56,7 @@ export class GamificationController {
                 "total": 10,
                 "points": [
                 {
-                    "id": "75f1a088-f903-4aec-bfb2-ed0547646229",
+                    "id": "point-id",
                     "userId": "c1157631-1a13-4904-a00d-11e76e709ca0",
                     "amount": 10,
                     "reason": "Completed session as host",

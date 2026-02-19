@@ -23,6 +23,7 @@ import { SessionService } from './session.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
+import { GamificationService } from '../gamification/gamification.service';
 import {
   CancelSessionDto,
   CompleteSessionDto,
@@ -34,7 +35,7 @@ import {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class SessionController {
-  constructor(private readonly sessionService: SessionService) {}
+  constructor( private readonly sessionService: SessionService   ) {}
 
   @Get('my-sessions')
   @ApiOperation({ summary: 'Get my sessions (as host or attendee)' })
@@ -283,4 +284,43 @@ export class SessionController {
   ) {
     return this.sessionService.cancelSession(user.id, id, dto.reason);
   }
+
+  // added summary session completed
+  @Get(':id/summary')
+  @ApiOperation({ summary: 'Get session summary after completion' })
+  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiOkResponse({
+    description: 'Session summary retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          sessionId: 'session-id',
+          sessionDuration: '1h 30m',
+          totalSessions: 12,
+          totalPoints: 100,
+          gainedPoints: 10,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Session not found' })
+  @ApiForbiddenResponse({
+    description: 'You are not authorized to view this session summary',
+  })
+  @ApiBadRequestResponse({
+    description: 'Session is not completed yet',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getSessionSummary(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ) {
+    return await this.sessionService.getSessionSummary(user.id, id);
+
+
+  }
+
 }

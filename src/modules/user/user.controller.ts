@@ -188,7 +188,7 @@ export class UserController {
       example: {
         success: true,
         data: {
-          id: 'skill-id',
+          id: 'user-skill-id',
           userId: 'user-id',
           skillId: 'skill-id',
           level: 'INTERMEDIATE',
@@ -260,7 +260,9 @@ export class UserController {
             {
               id: 'user-skill-id',
               level: 'INTERMEDIATE',
-              yearsOfExperience: 3,
+              skillDescription: "saddsasad",
+              yearsOfExperience: 0,
+              sessionLanguage: "china",
               isOffering: true,
               createdAt: '2026-01-24T12:00:00.000Z',
               skill: {

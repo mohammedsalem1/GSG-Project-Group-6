@@ -77,6 +77,12 @@ export class SkillInfoDto {
 }
 
 export class ProviderDto {
+
+  @ApiProperty()
+  @IsString()
+  userId: string;
+
+
   @ApiProperty()
   @IsString()
   userName: string;
@@ -207,6 +213,11 @@ export class SearchSkillDto extends PaginationDto  {
 }
 
 export class ProviderWithSwapsDto {
+  @ApiProperty()
+  @IsString()
+  userId: string;
+
+  
   @ApiProperty()
   @IsString()
   userName: string;

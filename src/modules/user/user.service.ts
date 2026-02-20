@@ -14,12 +14,16 @@ import { AddUserSkillDto, SearchUsersDto } from './dto';
 import { FeedbackService } from '../feedback/feedback.service';
 import { Badge } from '@prisma/client';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
+import { SearchUserSkillResponseDto } from '../skills/dto/skills.dto';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { SkillsService } from '../skills/skills.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly feedbackService: FeedbackService,
+    private readonly skillsService: SkillsService,
   ) {}
   create(createUserDto: CreateUserDto) {
     return this.prismaService.user.create({
@@ -42,14 +46,14 @@ export class UserService {
       },
     });
   }
-    clearOtp(email: string) {
-      return this.prismaService.user.update({
-        where: { email },
-        data: {
-          otpCode: null,
-          otpSendAt: null,
-        },
-      });
+  clearOtp(email: string) {
+    return this.prismaService.user.update({
+      where: { email },
+      data: {
+        otpCode: null,
+        otpSendAt: null,
+      },
+    });
   }
 
   updateOtp(hashedOtp: string, email: string) {
@@ -113,12 +117,12 @@ export class UserService {
 
   async findUserById(userId: string) {
     const user = await this.prismaService.user.findUnique({
-         where: { id: userId },
-         include: {
-          hostedSessions: { where: { status: 'COMPLETED' } },
-          attendedSessions: { where: { status: 'COMPLETED' } },
-          badges: { include: { badge: true }}
-         }
+      where: { id: userId },
+      include: {
+        hostedSessions: { where: { status: 'COMPLETED' } },
+        attendedSessions: { where: { status: 'COMPLETED' } },
+        badges: { include: { badge: true } },
+      },
     });
 
     if (!user) {
@@ -147,14 +151,14 @@ export class UserService {
         isVerified: true,
         createdAt: true,
         updatedAt: true,
-        badges:true,
+        badges: true,
         skills: {
           select: {
             id: true,
             level: true,
             yearsOfExperience: true,
-            sessionLanguage:true,
-            skillDescription:true, 
+            sessionLanguage: true,
+            skillDescription: true,
             isOffering: true,
             skill: {
               select: {
@@ -231,8 +235,14 @@ export class UserService {
   }
 
   async addUserSkill(userId: string, addUserSkillDto: AddUserSkillDto) {
-    const { skillId, level, yearsOfExperience, sessionLanguage , skillDescription} = addUserSkillDto;
-    const isOffering = true
+    const {
+      skillId,
+      level,
+      yearsOfExperience,
+      sessionLanguage,
+      skillDescription,
+    } = addUserSkillDto;
+    const isOffering = true;
     // Check if skill exists
     const skill = await this.prismaService.skill.findUnique({
       where: { id: skillId },
@@ -248,7 +258,7 @@ export class UserService {
         userId,
         skillId,
         isOffering,
-        isActive:true
+        isActive: true,
       },
     });
 
@@ -300,34 +310,32 @@ export class UserService {
 
   //   return { message: 'Skill removed successfully' };
   // }
-  async removeUserSkill(userId: string, skillId: string, isOffering: boolean) {
-  const userSkill = await this.prismaService.userSkill.findFirst({
-    where: {
-      userId,
-      skillId,
-      isOffering,
-      isActive: true, 
-    },
-  });
+  async removeUserSkill(userId: string, userSkillId: string) {
+    const userSkill = await this.prismaService.userSkill.findFirst({
+      where: {
+        id: userSkillId,
+        userId,
+        isActive: true,
+      },
+    });
 
-  if (!userSkill) {
-    throw new NotFoundException('User skill not found or already removed');
+    if (!userSkill) {
+      throw new NotFoundException('User skill not found or already removed');
+    }
+
+    await this.prismaService.userSkill.update({
+      where: { id: userSkill.id },
+      data: { isActive: false },
+    });
+
+    return { message: 'Skill removed successfully' };
   }
-
-  await this.prismaService.userSkill.update({
-    where: { id: userSkill.id },
-    data: { isActive: false },
-  });
-
-  return { message: 'Skill removed successfully (soft delete)' };
-}
- 
 
   async getUserSkills(userId: string) {
     const skills = await this.prismaService.userSkill.findMany({
       where: { userId, isActive: true },
       include: {
-        skill:true
+        skill: true,
       },
       orderBy: [{ isOffering: 'desc' }, { createdAt: 'desc' }],
     });
@@ -364,8 +372,8 @@ export class UserService {
             level: true,
             yearsOfExperience: true,
             isOffering: true,
-            sessionLanguage:true,
-            skillDescription:true,
+            sessionLanguage: true,
+            skillDescription: true,
             skill: {
               select: {
                 id: true,
@@ -380,10 +388,9 @@ export class UserService {
                 },
               },
             },
-            
           },
         },
-        badges:true,
+        badges: true,
         // Include stats
         _count: {
           select: {
@@ -413,152 +420,75 @@ export class UserService {
   async searchUsers(searchDto: SearchUsersDto) {
     const {
       query,
-      country,
-      location,
       availability,
-      skillName,
-      skillLevel,
+      language,
+      level,
       page = 1,
       limit = 10,
     } = searchDto;
 
-    // Build where clause
-    const where: any = {
-      isActive: true,
-    };
+    const hasSearch = !!query;
+    const hasFilter = !!(availability || language || level);
 
-    if (query) {
-      where.OR = [
-        { userName: { contains: query } },
-        { bio: { contains: query } },
-        { location: { contains: query } },
-      ];
-    }
-
-    if (country) {
-      where.country = { contains: country };
-    }
-
-    if (location) {
-      where.location = { contains: location };
-    }
-
-    if (availability) {
-      where.availability = availability;
-    }
-
-    if (skillName || skillLevel) {
-      where.skills = {
-        some: {
-          isOffering: true,
-          ...(skillName && {
-            skill: {
-              name: { contains: skillName },
-            },
-          }),
-          ...(skillLevel && { level: skillLevel }),
-        },
-      };
-    }
-
-    const skip = (page - 1) * limit;
-
-    const [users, total] = await Promise.all([
-      this.prismaService.user.findMany({
-        where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          userName: true,
-          bio: true,
-          image: true,
-          country: true,
-          location: true,
-          timezone: true,
-          availability: true,
-          createdAt: true,
-          skills: {
-            where: { isOffering: true },
-            select: {
-              id: true,
-              level: true,
-              yearsOfExperience: true,
-              skill: {
-                select: {
-                  id: true,
-                  name: true,
-                  category: {
-                    select: {
-                      name: true,
-                      icon: true,
-                    },
-                  },
-                },
-              },
-            },
-            take: 5,
-          },
-          _count: {
-            select: {
-              feedbackReceived: true,
-            },
-          },
-        },
-        orderBy: [{ createdAt: 'desc' }],
-      }),
-      this.prismaService.user.count({ where }),
-    ]);
-
-    // Add ratings to each user
-    const usersWithRatings = await Promise.all(
-      users.map(async (user) => {
-        const ratingData = await this.feedbackService.getUserRating(user.id);
-        return {
-          ...user,
-          averageRating: ratingData.rating,
-          totalFeedbacks: ratingData.totalFeedbacks,
-        };
-      }),
-    );
-
-    const totalPages = Math.ceil(total / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
-    return {
-      users: usersWithRatings,
-      pagination: {
-        total,
+    // If searching by name → use searchSkills
+    if (hasSearch && !hasFilter) {
+      return this.skillsService.searchSkills({
+        name: query,
         page,
         limit,
-        totalPages,
-        hasNextPage,
-        hasPrevPage,
+      });
+    }
+
+    // If filtering only → use filterSkills
+    if (!hasSearch && hasFilter) {
+      return this.skillsService.filterSkills({
+        availability,
+        language,
+        level,
+        page,
+        limit,
+      });
+    }
+
+    // If both search + filter → combine into filterSkills with name search
+    if (hasSearch && hasFilter) {
+      return this.skillsService.searchAndFilterSkills({
+        name: query,
+        availability,
+        language,
+        level,
+        page,
+        limit,
+      });
+    }
+
+    // No params → return all via filterSkills
+    return this.skillsService.filterSkills({ page, limit });
+  }
+
+  async updateUserSkill(
+    userId: string,
+    skillId: string,
+    dto: UpdateUserSkillDto,
+  ) {
+    const userSkill = await this.prismaService.userSkill.findFirst({
+      where: { userId, skillId, isActive: true },
+    });
+
+    if (!userSkill) {
+      throw new NotFoundException('User skill not found');
+    }
+
+    const updated = await this.prismaService.userSkill.update({
+      where: { id: userSkill.id },
+      data: { ...dto },
+      include: {
+        skill: { include: { category: true } },
       },
-    };
+    });
+
+    return updated;
   }
-
-
-async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) {
-  const userSkill = await this.prismaService.userSkill.findFirst({
-    where: { userId, skillId, isActive: true },
-  });
-
-  if (!userSkill) {
-    throw new NotFoundException('User skill not found');
-  }
-
-  const updated = await this.prismaService.userSkill.update({
-    where: { id: userSkill.id },
-    data: { ...dto },
-    include: {
-      skill: { include: { category: true } },
-    },
-  });
-
-  return updated;
-}
 
   /**
    * Get all users for admin (paginated). Keeps admin route but uses user service.
@@ -649,15 +579,24 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
       select: { reviewedId: true, overallRating: true },
     });
     const ratingNum = (r: string | null) =>
-      r === 'ONE' ? 1 : r === 'TWO' ? 2 : r === 'THREE' ? 3 : r === 'FOUR' ? 4 : r === 'FIVE' ? 5 : 0;
+      r === 'ONE'
+        ? 1
+        : r === 'TWO'
+          ? 2
+          : r === 'THREE'
+            ? 3
+            : r === 'FOUR'
+              ? 4
+              : r === 'FIVE'
+                ? 5
+                : 0;
     const byUser: Record<string, number[]> = {};
     reviews.forEach((r) => {
       if (!byUser[r.reviewedId]) byUser[r.reviewedId] = [];
       byUser[r.reviewedId].push(ratingNum(r.overallRating));
     });
     return Object.keys(byUser).filter(
-      (uid) =>
-        byUser[uid].reduce((a, b) => a + b, 0) / byUser[uid].length > 3,
+      (uid) => byUser[uid].reduce((a, b) => a + b, 0) / byUser[uid].length > 3,
     ).length;
   }
 
@@ -672,7 +611,17 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
       select: { reviewedId: true, overallRating: true },
     });
     const ratingNum = (r: string | null) =>
-      r === 'ONE' ? 1 : r === 'TWO' ? 2 : r === 'THREE' ? 3 : r === 'FOUR' ? 4 : r === 'FIVE' ? 5 : 0;
+      r === 'ONE'
+        ? 1
+        : r === 'TWO'
+          ? 2
+          : r === 'THREE'
+            ? 3
+            : r === 'FOUR'
+              ? 4
+              : r === 'FIVE'
+                ? 5
+                : 0;
     const byUser: Record<string, number[]> = {};
     reviews.forEach((r) => {
       if (!byUser[r.reviewedId]) byUser[r.reviewedId] = [];

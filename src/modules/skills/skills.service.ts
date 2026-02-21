@@ -16,7 +16,7 @@ import {
   SkillDto,
   UserSkillDetailsResponseDto,
 } from './dto/skills.dto';
-import { Prisma, Skill } from '@prisma/client';
+import { Prisma, Skill, SkillLevel } from '@prisma/client';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { FeedbackService } from '../feedback/feedback.service';
 import {
@@ -126,7 +126,6 @@ export class SkillsService {
     }
 
  async searchSkills(query: SearchSkillDto): Promise<PaginatedResponseDto<SearchUserSkillResponseDto>>  {
-  
       const searchName = query.name
       const pagination = this.prismaService.handleQueryPagination({
              page: query.page,

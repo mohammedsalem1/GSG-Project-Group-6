@@ -216,4 +216,34 @@ export class AdminService {
   async updateBadgeRequirement(badgeId: string , requirement: string,) {
     return await this.gamificationService.updateBadgeRequirement(badgeId, requirement);
   }
+ 
+  async banUser(userId:string, adminId:string, reason?:string) {
+    return this.userService.banUser(userId, adminId, reason);
+  }
+
+  async unbanUser(userId:string, adminId:string) {
+    return this.userService.unbanUser(userId, adminId);
+  }
+
+  async suspendUser(userId:string, adminId:string, reason?:string, endAt?:Date ) {
+    return this.userService.suspendUser(userId, adminId, reason, endAt );
+  }
+
+  async unsuspendUser(userId:string, adminId:string) {
+    return this.userService.unsuspendUser(userId, adminId);
+  }
+
+  async warnUser(userId: string, adminId:string, reason?:string) {
+    return this.userService.warnUser(userId, adminId, reason);
+  }
+
+  async addAdminNote(userId:string, adminId:string, reason?:string) {
+    return this.userService.addAdminNote(userId, adminId, reason);
+  }
+  async getUsersForAdmin(status?:'ACTIVE' | 'SUSPENDED' | 'BANNED' , search?:string) {
+    return this.userService.getUsersForAdmin(status , search)
+  }
+  async getUsersStats() {
+     return this.userService.getUsersStats()
+ } 
 }

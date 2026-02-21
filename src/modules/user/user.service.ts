@@ -12,8 +12,9 @@ import { PrismaService } from 'src/database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AddUserSkillDto, SearchUsersDto } from './dto';
 import { FeedbackService } from '../feedback/feedback.service';
-import { Badge } from '@prisma/client';
+import { Badge, RestrictionType } from '@prisma/client';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
+import { GamificationService } from '../gamification/gamification.service';
 
 @Injectable()
 export class UserService {
@@ -767,4 +768,236 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
       swaps,
     }));
   }
-}
+
+   // ===== Get current user status =====
+    getUserCurrentStatus(
+      user: {
+        restrictions: {
+          type: string;
+          endAt: Date | null;
+        }[];
+      }
+    ): 'ACTIVE' | 'SUSPENDED' | 'BANNED' {
+
+      const now = new Date();
+
+      const hasBan = user.restrictions.some(
+        r => r.type === 'BAN'
+      );
+
+      const hasActiveSuspension = user.restrictions.some(
+        r =>
+          r.type === 'SUSPENSION' &&
+          r.endAt &&
+          r.endAt > now
+      );
+
+      if (hasBan) return 'BANNED';
+      if (hasActiveSuspension) return 'SUSPENDED';
+      return 'ACTIVE';
+    }
+
+  // ===== Generic function to add restriction =====
+  private async addRestriction(
+    userId: string,
+    adminId: string,
+    type: RestrictionType,
+    reason?: string,
+    endAt?: Date,
+    externalNote?: string,
+  ) {
+    const restriction = await this.prismaService.userRestriction.create({
+      data: {
+        userId,
+        type,
+        reason,
+        endAt: endAt || null,
+      },
+    });
+
+    await this.prismaService.auditLog.create({
+      data: {
+        adminId,
+        action: 'CREATE',
+        entity: 'UserRestriction',
+        entityId: restriction.id,
+        details: `Added ${type} to user`,
+        metadata: externalNote ? { externalNote } : { oldStatus: 'UNKNOWN', newStatus: type },
+      },
+    });
+
+    return restriction;
+  }
+
+  // ===== Actions =====
+  async banUser(userId: string, adminId: string, reason?: string, endAt?: Date, externalNote?: string ) {
+    return this.addRestriction(userId, adminId, RestrictionType.BAN, reason, endAt, externalNote);
+  }
+
+  async unbanUser( userId: string, adminId: string ) {
+    const bans = await this.prismaService.userRestriction.findMany({
+      where: { userId, type: 'BAN' },
+    });
+
+    for (const ban of bans) {
+      await this.prismaService.userRestriction.delete({ where: { id: ban.id } });
+      await this.prismaService.auditLog.create({
+        data: {
+          adminId,
+          action: 'DELETE',
+          entity: 'UserRestriction',
+          entityId: ban.id,
+          details: `Removed BAN from user`,
+        },
+      });
+    }
+
+    return { removed: bans.length };
+  }
+
+  async suspendUser(userId: string, adminId: string, reason?: string, endAt?: Date, externalNote?: string ) {
+    return this.addRestriction(userId, adminId, RestrictionType.SUSPENSION, reason, endAt, externalNote);
+  }
+
+  async unsuspendUser(userId: string, adminId: string ) {
+    const suspensions = await this.prismaService.userRestriction.findMany({
+      where: { userId, type: 'SUSPENSION' },
+    });
+
+    for (const susp of suspensions) {
+      await this.prismaService.userRestriction.delete({ where: { id: susp.id } });
+      await this.prismaService.auditLog.create({
+        data: {
+          adminId,
+          action: 'DELETE',
+          entity: 'UserRestriction',
+          entityId: susp.id,
+          details: `Removed SUSPENSION from user`,
+        },
+      });
+    }
+
+    return { removed: suspensions.length };
+  }
+
+  async warnUser(userId: string, adminId: string, reason?: string, externalNote?: string ) {
+    return this.addRestriction(userId, adminId, RestrictionType.WARNING, reason, undefined, externalNote);
+  }
+
+  async addAdminNote( userId: string, adminId: string, reason?: string, externalNote?: string ) {
+    return this.addRestriction(userId, adminId, RestrictionType.ADMIN_NOTE, reason, undefined, externalNote);
+  }
+
+  // ===== Get all users with optional filter =====
+    async getUsersForAdmin(
+      status?: 'ACTIVE' | 'SUSPENDED' | 'BANNED',
+      search?: string
+    ) {
+
+      const users = await this.prismaService.user.findMany({
+        where: search
+          ? {
+              OR: [
+                { userName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+        select: {
+          id: true,
+          userName: true,
+          email: true,
+          restrictions: true,
+          badges: {
+            select: {
+              badge: {
+                select: {
+                  id: true,
+                  name: true,
+                  icon: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const groupedPoints = await this.prismaService.point.groupBy({
+        by: ['userId'],
+        _sum: {
+          amount: true,
+        },
+      });
+
+      const pointsMap = new Map(
+        groupedPoints.map(p => [p.userId, p._sum.amount || 0])
+      );
+      let activeUsers = 0;
+      let bannedUsers = 0;
+      let suspendedUsers = 0;
+
+      const result = users.map(user => {
+
+      const currentStatus = this.getUserCurrentStatus(user);
+
+      if (currentStatus === 'ACTIVE') activeUsers++;
+      else if (currentStatus === 'BANNED') bannedUsers++;
+      else if (currentStatus === 'SUSPENDED') suspendedUsers++;
+
+        return {
+          id: user.id,
+          name: user.userName,
+          email: user.email,
+          status: currentStatus,
+          points: pointsMap.get(user.id) || 0,
+          badges: user.badges.map(b => ({
+            id: b.badge.id,
+            name: b.badge.name,
+            icon: b.badge.icon,
+          })),
+        };
+      });
+
+      if (status) {
+        return result.filter(u => u.status === status);
+      }
+      
+      return {
+        stats: {
+          active: activeUsers,
+          banned: bannedUsers,
+          suspended: suspendedUsers,
+        },
+        users: result,
+    }
+    }
+
+    async getUsersStats() {
+      const users = await this.prismaService.user.findMany({
+        select: {
+          id: true,
+          restrictions: true,
+        },
+      });
+
+      let activeUsers = 0;
+      let bannedUsers = 0;
+      let suspendedUsers = 0;
+
+      users.forEach(user => {
+        const currentStatus = this.getUserCurrentStatus(user);
+
+        if (currentStatus === 'ACTIVE') activeUsers++;
+        else if (currentStatus === 'BANNED') bannedUsers++;
+        else if (currentStatus === 'SUSPENDED') suspendedUsers++;
+      });
+
+      return {
+        totalUsers: users.length,
+        active: activeUsers,
+        banned: bannedUsers,
+        suspended: suspendedUsers,
+      };
+    }
+  }
+

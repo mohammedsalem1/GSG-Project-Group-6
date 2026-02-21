@@ -52,6 +52,7 @@ import type { Request, Response } from 'express';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { Public } from '@prisma/client/runtime/library';
 import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
+import { AddUserActionDto } from './dto/admin-add-user-action.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -377,4 +378,62 @@ export class AdminController {
     ) {
           return this.adminService.updateBadgeRequirement(badgeId, dto.requirement);
     }
+  
+  
+  @Post(':userId/ban')
+  async banUser(@Param('userId') userId: string,@CurrentUser() admin:RequestUser, @Body() body: AddUserActionDto) {
+    return this.adminService.banUser( userId, admin.id, body.reason );
+  }
+
+  @Post(':userId/unban')
+  async unbanUser(@Param('userId') userId: string,@CurrentUser() admin:RequestUser) {
+    return this.adminService.unbanUser(userId, admin.id);
+  }
+
+  @Post(':userId/suspend')
+  async suspendUser(@Param('userId') userId: string, @CurrentUser() admin:RequestUser, @Body() body: AddUserActionDto) {
+    return this.adminService.suspendUser( userId, admin.id, body.reason ,body.endAt );
+  }
+
+  // @Post(':userId/unsuspend')
+  // async unsuspendUser(@Param('userId') userId: string, @CurrentUser() admin: RequestUser) {
+  //   return this.adminService.unsuspendUser({ userId, adminId: user.id });
+  // }
+
+  @Post(':userId/warn')
+  async warnUser(@Param('userId') userId: string, @CurrentUser() admin: RequestUser, @Body() body: AddUserActionDto) {
+    return this.adminService.warnUser(userId, admin.id, body.reason );
+  }
+
+  @Post(':userId/note')
+  async addAdminNote(@Param('userId') userId: string, @CurrentUser() admin: RequestUser, @Body() body: AddUserActionDto) {
+    return this.adminService.addAdminNote(userId, admin.id, body.reason);
+  }
+  @Get('users')
+  @ApiOperation({ summary: 'Get all users for admin with optional filters' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['ACTIVE', 'SUSPENDED', 'BANNED'],
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: 'search',
+  })
+  async getAllUsersForAdmin(
+    @Query('status') status?: 'ACTIVE' | 'SUSPENDED' | 'BANNED',
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getUsersForAdmin(
+      status,
+      search,
+    );
+  }
+  @Get('users/stats')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get users statistics for dashboard' })
+  async getUsersStats() {
+    return this.adminService.getUsersStats();
+  }
 }

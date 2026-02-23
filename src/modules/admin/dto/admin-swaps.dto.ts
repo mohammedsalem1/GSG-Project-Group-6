@@ -165,6 +165,23 @@ export class AdminSwapsQueryDto extends PaginationDto {
   endDate?: string;
 }
 
+
+export enum SwapDirection {
+  SENT = 'SENT',
+  RECEIVED = 'RECEIVED',
+}
+
+export class AdminUserSwapsQueryDto extends AdminSwapsQueryDto {
+    @ApiPropertyOptional({
+        enum: SwapDirection,
+        description: 'Filter swaps by direction (SENT or RECEIVED)',
+        example: 'SENT',
+      })
+      @IsOptional()
+      @IsEnum(SwapDirection)
+      direction?: SwapDirection;
+
+}
 export class AdminSwapExportDto {
   @ApiProperty({
     description: 'Array of swap IDs to export',

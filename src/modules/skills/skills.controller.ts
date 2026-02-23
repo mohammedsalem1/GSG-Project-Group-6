@@ -10,7 +10,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
 import { CreateSkillDto, SkillResponseDto } from './dto/create-skill.dto';
-import { Skill } from '@prisma/client';
+import { Skill, SkillLevel } from '@prisma/client';
 import { TrendingSkillResponseDto } from './dto/trendingSkillResponse.dto';
 
 
@@ -81,7 +81,7 @@ export class SkillsController {
        return this.skillService.autocomplete(name);
    }
 
-   
+  
    @Get('search')
    @UseGuards(JwtAuthGuard)
    @ApiBearerAuth('JWT-auth')

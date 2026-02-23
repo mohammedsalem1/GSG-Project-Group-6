@@ -9,6 +9,7 @@ import { FeedbackModule } from '../feedback/feedback.module';
 import { SkillsModule } from '../skills/skills.module';
 import { GamificationModule } from '../gamification/gamification.module';
 
+
 @Module({
   imports: [
     UserModule,
@@ -18,7 +19,9 @@ import { GamificationModule } from '../gamification/gamification.module';
     SkillsModule,
     GamificationModule
   ],
-  controllers: [AdminController],
+  controllers: [
+    AdminController,
+  ],
   providers: [AdminService, AuditService],
 })
 export class AdminModule {}

@@ -27,7 +27,7 @@ enum Availability {
 enum SkillLevel {
   BEGINNER
   INTERMEDIATE
-  EXPERT
+  ADVANCED
 }
 
 enum BadgeCategory {
@@ -99,7 +99,7 @@ enum TokenType {
 
 model User {
   id            String        @id @default(uuid())
-  userName      String?        @unique
+  userName      String?       
   email         String        @unique
   password      String
   phoneNumber   String?
@@ -135,13 +135,32 @@ model User {
 
   feedbackGiven   Feedback[] @relation("FeedbackGiver")
   feedbackReceived Feedback[] @relation("FeedbackReceiver")
+  adminNotes AdminNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  restrictions UserRestriction[]
   @@map("users")
 }
+model UserRestriction {
+  id        String            @id @default(uuid())
+  user      User              @relation(fields: [userId], references: [id])
+  userId    String
+  type      RestrictionType
+  reason    String?            //  Ban / Suspension / Warning / Admin Note
+  createdAt DateTime           @default(now())
+  endAt     DateTime?          //  Ban أو Suspension
 
+  @@map("user-restrictions")
+
+}
+
+enum RestrictionType {
+  BAN
+  SUSPENSION
+  WARNING
+  ADMIN_NOTE
+}
 model Category {
   id          String   @id @default(uuid())
   name        String
@@ -465,4 +484,13 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
+}
+model AdminNote {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  adminId     String
+  reason      String?
+  externalNote String?
+  createdAt   DateTime @default(now())
 }

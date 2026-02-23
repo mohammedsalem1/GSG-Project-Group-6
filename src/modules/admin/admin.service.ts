@@ -14,6 +14,7 @@ import {
 import {
   AdminSwapsListResponseDto,
   AdminSwapsQueryDto,
+  AdminUserSwapsQueryDto,
 } from './dto/admin-swaps.dto';
 import {
   AdminSessionsListResponseDto,
@@ -25,6 +26,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { GamificationService } from '../gamification/gamification.service';
 import { ApiOperation, ApiParam } from '@nestjs/swagger';
 import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
+import { UserListQueryDto } from './dto/admin-user-list.dto';
 
 @Injectable()
 export class AdminService {
@@ -216,4 +218,59 @@ export class AdminService {
   async updateBadgeRequirement(badgeId: string , requirement: string,) {
     return await this.gamificationService.updateBadgeRequirement(badgeId, requirement);
   }
+ 
+  async banUser(userId:string, adminId:string, reason?:string) {
+    return this.userService.banUser(userId, adminId, reason);
+  }
+
+  async unbanUser(userId:string, adminId:string) {
+    return this.userService.unbanUser(userId, adminId);
+  }
+
+  async suspendUser(userId:string, adminId:string, reason?:string, endAt?:Date ) {
+    return this.userService.suspendUser(userId, adminId, reason, endAt );
+  }
+
+  async unsuspendUser(userId:string, adminId:string) {
+    return this.userService.unsuspendUser(userId, adminId);
+  }
+
+  async warnUser(userId: string, adminId:string, reason?:string) {
+    return this.userService.warnUser(userId, adminId, reason);
+  }
+
+  async addAdminNote(userId:string, adminId:string, externalNote?:string) {
+    return this.userService.addAdminNote(userId, adminId, externalNote);
+  }
+  async getUsersForAdmin(query: UserListQueryDto) {
+    return this.userService.getUsersForAdmin(query)
+  }
+  async getUsersStats() {
+     return this.userService.getUsersStats()
+ } 
+
+ // get Overview User
+  async getOverviewUserForAdmin(userId:string) {
+     return this.userService.getOverviewUserForAdmin(userId)
+ } 
+ 
+  // get Active log
+  async getUserActivityLog(userId:string) {
+     return this.userService.getUserActivityLog(userId)
+ } 
+ /// Swap Request User
+  async getUserSwapsForAdmin(userId:string , query:AdminUserSwapsQueryDto) {
+     return this.swapsService.getUserSwapsForAdmin(userId , query)
+ } 
+  // Get User Sessions For Admin
+  async getUserSessionsForAdmin(userId:string , query: AdminSessionsQueryDto) {
+     return this.sessionService.getUserSessionsForAdmin(userId , query)
+  }
+
+
+  // Get AllUserBadges For Admin
+  async getAllUserBadges(userId:string) {
+     return this.gamificationService.getAllUserBadges(userId)
+  }
+  
 }

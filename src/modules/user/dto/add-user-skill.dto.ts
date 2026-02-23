@@ -5,14 +5,15 @@ import {
   IsEnum,
   IsOptional,
   IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { SkillLevel } from '@prisma/client';
 
 export class AddUserSkillDto {
-
   @ApiProperty({
     example: 'uuid-of-skill',
-    description: 'ID of the skill to add',
+    description: 'ID of the skill from the skills list',
   })
   @IsString()
   @IsNotEmpty({ message: 'Skill ID is required' })
@@ -21,33 +22,48 @@ export class AddUserSkillDto {
   @ApiProperty({
     enum: SkillLevel,
     example: SkillLevel.INTERMEDIATE,
-    description: 'User proficiency level',
+    description: 'Your proficiency level for this skill',
   })
-  @IsOptional()
   @IsEnum(SkillLevel, { message: 'Invalid skill level' })
   level: SkillLevel;
 
-  @ApiPropertyOptional({
-    example: 3,
-    description: 'Years of experience',
-  })
-  @IsOptional()
-  @IsInt({ message: 'Years of experience must be a number' })
-  yearsOfExperience?: number;
+  // @ApiPropertyOptional({
+  //   example: 3,
+  //   description: 'Years of experience with this skill',
+  //   minimum: 0,
+  //   maximum: 50,
+  // })
+  // @IsOptional()
+  // @IsInt({ message: 'Years of experience must be a number' })
+  // @Min(0)
+  // @Max(50)
+  // yearsOfExperience?: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'Arabic',
-    description: 'Language used during the session',
+    description: 'Language you will use to teach this skill',
   })
-  @IsOptional()
   @IsString({ message: 'Session language must be a string' })
-  sessionLanguage?: string;
+  @IsNotEmpty({ message: 'Session language is required' })
+  sessionLanguage: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'I focus on practical projects and real-world examples.',
-    description: 'How the user offers this skill',
+    description: 'Description of how you teach this skill',
   })
-  @IsOptional()
-  @IsString({ message: 'Description must be a string' })
-  skillDescription?: string;
+  @IsString({ message: 'Skill description must be a string' })
+  @IsNotEmpty({ message: 'Skill description is required' })
+  skillDescription: string;
+
+  // @ApiPropertyOptional({
+  //   example: 60,
+  //   description: 'Typical session duration in minutes',
+  //   minimum: 15,
+  //   maximum: 240,
+  // })
+  // @IsOptional()
+  // @IsInt({ message: 'Duration must be a number' })
+  // @Min(15, { message: 'Session duration must be at least 15 minutes' })
+  // @Max(240, { message: 'Session duration cannot exceed 240 minutes' })
+  // sessionDuration?: number;
 }

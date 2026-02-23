@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SwapStatus } from '@prisma/client';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { VALID_TIMEZONES } from 'src/modules/user/dto';
+import type { ValidTimezone } from 'src/modules/user/dto';
 
 export class CreateSwapRequestDto {
   @ApiProperty({ example: '2b4f7c7a-8f4a-4a8b-9d6b-6c1e9f2c1a11' })
@@ -46,10 +48,16 @@ export class CreateSwapRequestDto {
 
   endAt: string; 
 
-  @ApiPropertyOptional({ example: 'UTC', description: 'Timezone for the session' })
-  @IsOptional()
-  @IsString()
-  timezone?: string = 'UTC';
+    @ApiPropertyOptional({
+      example: 'Asia/Jerusalem',
+      description: 'Timezone (must be a valid IANA timezone)',
+      enum: VALID_TIMEZONES,
+    })
+    @IsOptional()
+    @IsEnum(VALID_TIMEZONES, {
+      message: `Timezone must be one of: ${VALID_TIMEZONES.join(', ')}`,
+    })
+    timezone?: ValidTimezone;
 }
 
 export class SwapRequestsQueryDto extends PaginationDto {

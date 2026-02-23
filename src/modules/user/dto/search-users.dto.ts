@@ -5,28 +5,12 @@ import { Availability, SkillLevel } from '@prisma/client';
 
 export class SearchUsersDto {
   @ApiPropertyOptional({
-    description: 'Search query (username, bio, location)',
-    example: 'john developer',
+    description: 'Search by user name or skill name',
+    example: 'john',
   })
   @IsOptional()
   @IsString()
   query?: string;
-
-  @ApiPropertyOptional({
-    description: 'Filter by country',
-    example: 'Palestine',
-  })
-  @IsOptional()
-  @IsString()
-  country?: string;
-
-  @ApiPropertyOptional({
-    description: 'Filter by location/city',
-    example: 'Ramallah',
-  })
-  @IsOptional()
-  @IsString()
-  location?: string;
 
   @ApiPropertyOptional({
     description: 'Filter by availability',
@@ -38,41 +22,30 @@ export class SearchUsersDto {
   availability?: Availability;
 
   @ApiPropertyOptional({
-    description: 'Filter by skill name (user must offer this skill)',
-    example: 'JavaScript',
+    description: 'Filter by skill session language',
+    example: 'Arabic',
   })
   @IsOptional()
   @IsString()
-  skillName?: string;
+  language?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by minimum skill level',
+    description: 'Filter by skill level',
     enum: SkillLevel,
     example: 'INTERMEDIATE',
   })
   @IsOptional()
   @IsEnum(SkillLevel)
-  skillLevel?: SkillLevel;
+  level?: SkillLevel;
 
-  @ApiPropertyOptional({
-    description: 'Page number',
-    example: 1,
-    minimum: 1,
-    default: 1,
-  })
+  @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({
-    description: 'Items per page',
-    example: 10,
-    minimum: 1,
-    maximum: 50,
-    default: 10,
-  })
+  @ApiPropertyOptional({ example: 10, minimum: 1, maximum: 50, default: 10 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

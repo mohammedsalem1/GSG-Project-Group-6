@@ -6,7 +6,7 @@ import { FeedbackModule } from '../feedback/feedback.module';
 @Module({
   providers: [SkillsService],
   controllers: [SkillsController],
-  exports: [SkillsService] , 
-  imports:[FeedbackModule]
+  exports: [SkillsService],
+  imports: [FeedbackModule],
 })
 export class SkillsModule {}

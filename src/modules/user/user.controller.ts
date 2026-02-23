@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -35,7 +36,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
 import { Public } from '../auth/decorators/public.decorator';
-import { AddUserSkillDto, UpdateUserDto } from './dto';
+import { AddUserSkillDto, SearchUsersDto, UpdateUserDto } from './dto';
 import { ImageKitService } from './services/imagekit.service';
 import { UpdateUserCategoriesDto } from '../skills/dto/skills.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
@@ -51,24 +52,33 @@ export class UserController {
   @Patch('me/categories')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: ' Onpoarding screen, selected categories for current user' })
-  @ApiOkResponse({description: 'Selected categories updated successfully' ,   schema: {
+  @ApiOperation({
+    summary: ' Onpoarding screen, selected categories for current user',
+  })
+  @ApiOkResponse({
+    description: 'Selected categories updated successfully',
+    schema: {
       example: {
         success: true,
         data: {
-          userId:"dsadssadsassddsdas" , 
-          userName:"mohammed",
-          selectedCatIds:"nku"
-        }}
-      }} )
-  @ApiOperation({ summary: 'update Selected Category user'})
+          userId: 'dsadssadsassddsdas',
+          userName: 'mohammed',
+          selectedCatIds: 'nku',
+        },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'update Selected Category user' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiBadRequestResponse({ description: 'Some category IDs were not found' })
   async updateCategories(
     @CurrentUser() user: RequestUser,
-    @Body() dto: UpdateUserCategoriesDto
+    @Body() dto: UpdateUserCategoriesDto,
   ) {
-    return this.userService.updateUserSelectedCategories(user.id, dto.selectedCatIds);
+    return this.userService.updateUserSelectedCategories(
+      user.id,
+      dto.selectedCatIds,
+    );
   }
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -220,30 +230,21 @@ export class UserController {
     return this.userService.addUserSkill(user.id, addUserSkillDto);
   }
 
-  @Delete('me/skills/:skillId')
+  @Delete('me/skills/:userSkillId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Remove skill from user profile' })
-  @ApiOkResponse({
-    description: 'Skill removed successfully',
-    schema: {
-      example: {
-        success: true,
-        data: {
-          message: 'Skill removed successfully',
-        },
-      },
-    },
+  @ApiOperation({
+    summary:
+      'Remove skill from user profile (use the UserSkill ID from GET /me/skills, not the Skill ID)',
   })
+  @ApiOkResponse({ description: 'Skill removed successfully' })
   @ApiNotFoundResponse({ description: 'User skill not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async removeUserSkill(
     @CurrentUser() user: RequestUser,
-    @Param('skillId') skillId: string,
-    // @Query('isOffering') isOffering: string,
+    @Param('userSkillId') userSkillId: string,
   ) {
-    const isOfferingBool = true;
-    return this.userService.removeUserSkill(user.id, skillId, isOfferingBool);
+    return this.userService.removeUserSkill(user.id, userSkillId);
   }
 
   @Get('me/skills')
@@ -260,9 +261,9 @@ export class UserController {
             {
               id: 'user-skill-id',
               level: 'INTERMEDIATE',
-              skillDescription: "saddsasad",
+              skillDescription: 'saddsasad',
               yearsOfExperience: 0,
-              sessionLanguage: "china",
+              sessionLanguage: 'china',
               isOffering: true,
               createdAt: '2026-01-24T12:00:00.000Z',
               skill: {
@@ -304,6 +305,61 @@ export class UserController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async getUserSkills(@CurrentUser() user: RequestUser) {
     return this.userService.getUserSkills(user.id);
+  }
+  @Get('search')
+  @Public()
+  @ApiOperation({ summary: 'Search users with filters' })
+  @ApiOkResponse({
+    description: 'Users retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          users: [
+            {
+              id: 'user-id',
+              userName: 'johndoe',
+              bio: 'Passionate developer',
+              image: 'https://ik.imagekit.io/...',
+              country: 'Palestine',
+              location: 'Ramallah',
+              timezone: 'Asia/Jerusalem',
+              availability: 'FLEXIBLE',
+              createdAt: '2026-01-20T10:00:00.000Z',
+              skills: [
+                {
+                  id: 'skill-id',
+                  level: 'INTERMEDIATE',
+                  yearsOfExperience: 3,
+                  skill: {
+                    id: 'skill-id',
+                    name: 'JavaScript',
+                    category: {
+                      name: 'Programming',
+                      icon: '💻',
+                    },
+                  },
+                },
+              ],
+              _count: {
+                reviewsReceived: 4,
+              },
+            },
+          ],
+          pagination: {
+            total: 50,
+            page: 1,
+            limit: 10,
+            totalPages: 5,
+            hasNextPage: true,
+            hasPrevPage: false,
+          },
+        },
+      },
+    },
+  })
+  async searchUsers(@Query() searchDto: SearchUsersDto) {
+    return this.userService.searchUsers(searchDto);
   }
 
   @Get(':id')
@@ -359,12 +415,16 @@ export class UserController {
   async getPublicUserProfile(@Param('id') userId: string) {
     return this.userService.getPublicUserProfile(userId);
   }
-  
+
   @Patch(':skillId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update a user skill (description, language, level, years of experience)' })
-  @ApiOkResponse({ description: 'User skill updated successfully',
+  @ApiOperation({
+    summary:
+      'Update a user skill (description, language, level, years of experience)',
+  })
+  @ApiOkResponse({
+    description: 'User skill updated successfully',
     schema: {
       example: {
         success: true,
@@ -393,63 +453,8 @@ export class UserController {
   async editUserSkill(
     @CurrentUser() user: RequestUser,
     @Param('skillId') skillId: string,
-    @Body() dto: UpdateUserSkillDto
+    @Body() dto: UpdateUserSkillDto,
   ) {
     return this.userService.updateUserSkill(user.id, skillId, dto);
   }
-  // @Get('search')
-  // @Public()
-  // @ApiOperation({ summary: 'Search users with filters' })
-  // @ApiOkResponse({
-  //   description: 'Users retrieved successfully',
-  //   schema: {
-  //     example: {
-  //       success: true,
-  //       data: {
-  //         users: [
-  //           {
-  //             id: 'user-id',
-  //             userName: 'johndoe',
-  //             bio: 'Passionate developer',
-  //             image: 'https://ik.imagekit.io/...',
-  //             country: 'Palestine',
-  //             location: 'Ramallah',
-  //             timezone: 'Asia/Jerusalem',
-  //             availability: 'FLEXIBLE',
-  //             createdAt: '2026-01-20T10:00:00.000Z',
-  //             skills: [
-  //               {
-  //                 id: 'skill-id',
-  //                 level: 'INTERMEDIATE',
-  //                 yearsOfExperience: 3,
-  //                 skill: {
-  //                   id: 'skill-id',
-  //                   name: 'JavaScript',
-  //                   category: {
-  //                     name: 'Programming',
-  //                     icon: '💻',
-  //                   },
-  //                 },
-  //               },
-  //             ],
-  //             _count: {
-  //               reviewsReceived: 4,
-  //             },
-  //           },
-  //         ],
-  //         pagination: {
-  //           total: 50,
-  //           page: 1,
-  //           limit: 10,
-  //           totalPages: 5,
-  //           hasNextPage: true,
-  //           hasPrevPage: false,
-  //         },
-  //       },
-  //     },
-  //   },
-  // })
-  // async searchUsers(@Query() searchDto: SearchUsersDto) {
-  //   return this.userService.searchUsers(searchDto);
-  // }
 }

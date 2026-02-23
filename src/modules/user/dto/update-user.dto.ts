@@ -55,15 +55,15 @@ export class UpdateUserDto {
   @MaxLength(500, { message: 'Bio cannot exceed 500 characters' })
   bio?: string;
 
-  @ApiPropertyOptional({
-    example: 'Palestine',
-    description: 'Country name',
-  })
-  @IsOptional()
-  @IsString()
-  @MinLength(2)
-  @MaxLength(100)
-  country?: string;
+  // @ApiPropertyOptional({
+  //   example: 'Palestine',
+  //   description: 'Country name',
+  // })
+  // @IsOptional()
+  // @IsString()
+  // @MinLength(2)
+  // @MaxLength(100)
+  // country?: string;
 
   @ApiPropertyOptional({
     example: 'Ramallah',

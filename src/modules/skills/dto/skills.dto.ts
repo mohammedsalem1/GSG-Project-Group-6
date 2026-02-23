@@ -297,7 +297,6 @@ export class UpdateUserCategoriesDto {
     minItems: 1,
   })
   @IsArray()
-  @ArrayMinSize(1, { message: 'Select at least one category' })
   @ArrayMaxSize(5, { message: 'You can select up to 5 categories' })
   @ArrayNotEmpty({ message: 'You must select at least 3 categories' })
   @ArrayMinSize(3, { message: 'You must select at least 3 categories' })

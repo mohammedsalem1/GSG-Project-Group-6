@@ -240,7 +240,7 @@ export class UserService {
     const {
       skillId,
       level,
-      yearsOfExperience,
+      // yearsOfExperience,
       sessionLanguage,
       skillDescription,
     } = addUserSkillDto;
@@ -276,7 +276,7 @@ export class UserService {
         userId,
         skillId,
         level,
-        yearsOfExperience: yearsOfExperience || null,
+        // yearsOfExperience: yearsOfExperience || null,
         isOffering,
         sessionLanguage,
         skillDescription,

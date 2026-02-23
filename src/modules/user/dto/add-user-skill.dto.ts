@@ -27,17 +27,17 @@ export class AddUserSkillDto {
   @IsEnum(SkillLevel, { message: 'Invalid skill level' })
   level: SkillLevel;
 
-  @ApiPropertyOptional({
-    example: 3,
-    description: 'Years of experience with this skill',
-    minimum: 0,
-    maximum: 50,
-  })
-  @IsOptional()
-  @IsInt({ message: 'Years of experience must be a number' })
-  @Min(0)
-  @Max(50)
-  yearsOfExperience?: number;
+  // @ApiPropertyOptional({
+  //   example: 3,
+  //   description: 'Years of experience with this skill',
+  //   minimum: 0,
+  //   maximum: 50,
+  // })
+  // @IsOptional()
+  // @IsInt({ message: 'Years of experience must be a number' })
+  // @Min(0)
+  // @Max(50)
+  // yearsOfExperience?: number;
 
   @ApiProperty({
     example: 'Arabic',
@@ -55,15 +55,15 @@ export class AddUserSkillDto {
   @IsNotEmpty({ message: 'Skill description is required' })
   skillDescription: string;
 
-  @ApiPropertyOptional({
-    example: 60,
-    description: 'Typical session duration in minutes',
-    minimum: 15,
-    maximum: 240,
-  })
-  @IsOptional()
-  @IsInt({ message: 'Duration must be a number' })
-  @Min(15, { message: 'Session duration must be at least 15 minutes' })
-  @Max(240, { message: 'Session duration cannot exceed 240 minutes' })
-  sessionDuration?: number;
+  // @ApiPropertyOptional({
+  //   example: 60,
+  //   description: 'Typical session duration in minutes',
+  //   minimum: 15,
+  //   maximum: 240,
+  // })
+  // @IsOptional()
+  // @IsInt({ message: 'Duration must be a number' })
+  // @Min(15, { message: 'Session duration must be at least 15 minutes' })
+  // @Max(240, { message: 'Session duration cannot exceed 240 minutes' })
+  // sessionDuration?: number;
 }

@@ -3,6 +3,7 @@ import { UserService } from '../user/user.service';
 import { Prisma, PointType, Badge } from '@prisma/client';
 import { UserBadgeWithBadge } from './types/userBadge.type';
 import { PrismaService } from 'src/database/prisma.service';
+import { EarnedBadgeDto, LockedBadgeDto } from '../admin/dto/admin-get-locked-badge.dto';
 
 
 
@@ -184,4 +185,81 @@ export class GamificationService {
       data: { requirement },
     });
   }
+
+  async getAllUserBadges(userId: string) {
+    
+    const user = await this.userService.findUserById(userId);    
+    if (!user) {
+          throw new BadRequestException('the user not found')
+    }
+
+    const badges = await this.prismaService.badge.findMany({
+      where: { isActive: true },
+      orderBy: { requirement: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        requirement: true,
+        
+      },
+    });
+
+    const completedSessions =
+      user.hostedSessions.length + user.attendedSessions.length;
+
+    const userBadges = await this.prismaService.userBadge.findMany({
+      where: { userId },
+      select: { badgeId: true, unlockedAt: true },
+    });
+
+    const userBadgeMap = new Map(
+      userBadges.map(b => [b.badgeId, b.unlockedAt])
+    );
+
+    const earnedBadges:EarnedBadgeDto[] = [];
+    const lockedBadges:LockedBadgeDto[] = [];
+
+    for (const badge of badges) {
+      const unlockedAt = userBadgeMap.get(badge.id);
+
+      if (unlockedAt) {
+        // ✅ Earned
+        earnedBadges.push({
+          name: badge.name,
+          icon: badge.icon,
+          requirement:badge.requirement,
+          unlockedAt,
+        });
+      } else {
+        // 🔒 Locked
+        const requirement = Number(badge.requirement)
+        const completed = Math.min(completedSessions, requirement);
+
+        const remainingSessions = Math.max(
+          requirement - completedSessions,
+          0
+        );
+
+        lockedBadges.push({
+          name: badge.name,
+          icon: badge.icon,
+          progress: `${completed}/${badge.requirement}`,
+          remainingSessions,
+        });
+      }
+    }
+
+    return {
+      user:{
+        id: user.id,
+        userName: user.userName,
+        image: user.image,
+        email:user.email
+     },
+      completedSessions,
+      earnedBadges,
+      lockedBadges,
+    };
+ }
 }

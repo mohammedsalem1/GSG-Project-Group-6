@@ -12,10 +12,15 @@ import {
 import { SessionStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { CompleteSessionDto, GetSessionsQueryDto } from './dto';
+import { AdminSessionsQueryDto } from '../admin/dto/admin-sessions.dto';
+import { hostname } from 'os';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class SessionService {
-  constructor(private readonly prismaService: PrismaService , ) {}
+  constructor(
+      private readonly prismaService: PrismaService ,
+   ) {}
 
   /**
    * Get user's sessions (as host or attendee)
@@ -739,5 +744,180 @@ export class SessionService {
     gainedPoints: 50,
   };
 }
+  async getUserSessionsForAdmin(
+    userId: string,
+    query: AdminSessionsQueryDto,
+  ) {
+    const {
+      status,
+      sort = 'newest',
+      startDate,
+      endDate,
+      search,
+    } = query;
+    const user = await this.prismaService.user.findUnique({
+      where:{id:userId},
+      select: {
+        id:true,
+        userName     :true,
+        email:true,
+        image:true
+    }})
 
+    if (!user) {
+       throw new BadRequestException('the user not found')
+    }
+    const where: any = {
+      OR: [
+        { hostId: userId },
+        { attendeeId: userId },
+      ],
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    /* ================= DATE FILTER ================= */
+    if (startDate || endDate) {
+      where.scheduledAt = {};
+
+      if (startDate) {
+        where.scheduledAt.gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.scheduledAt.lte = end;
+      }
+    }
+
+    /* ================= SEARCH BY PARTNER NAME ONLY ================= */
+    if (search) {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            {
+              AND: [
+                { hostId: userId },
+                {
+                  attendee: {
+                    userName: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              ],
+            },
+
+            {
+              AND: [
+                { attendeeId: userId },
+                {
+                  host: {
+                    userName: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ];
+    }
+
+    /* ================= PAGINATION ================= */
+    const pagination = this.prismaService.handleQueryPagination(query);
+    const { page, ...paginationArgs } = pagination;
+
+    const [sessions , total] = await Promise.all([
+      this.prismaService.session.findMany({
+        where,
+        select: {
+          id: true,
+          scheduledAt: true,
+          endsAt: true,
+          status: true,
+          duration: true,
+          swapRequest:true,
+
+          skill: {
+            select: { name: true },
+          },
+
+          host: {
+            select: {
+              id: true,
+              userName: true,
+              email: true,   
+              image: true,
+            },
+          },
+
+          attendee: {
+            select: {
+              id: true,
+              userName: true,
+              image: true,   
+            },
+          },
+        },
+
+        orderBy: {
+          scheduledAt: sort === 'oldest' ? 'asc' : 'desc',
+        },
+
+        ...paginationArgs,
+      }),
+      this.prismaService.session.count({ where }),
+    ]);
+
+    /* ================= RESPONSE MAPPING ================= */
+    const data = sessions.map((session) => {
+      const partner = session.host.id === userId ? session.attendee : session.host;
+
+  return {
+    id: session.id,
+    scheduledAt: session.scheduledAt,
+    endsAt: session.endsAt,
+    status: session.status,
+    duration: session.duration,
+    skillName: session.skill?.name || 'N/A',
+
+    partner: {
+      id: partner.id,
+      userName: partner.userName,
+      image: partner.image,
+    },
+  };
+});
+   const limit = query.limit!
+  // ===== Pagination calculations =====
+  const totalPages = Math.ceil(total /limit);
+
+  return {
+    user:{
+      id: user.id,
+      userName: user.userName,
+      image: user.image,
+      email:user.email
+    },
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      nextPage: page < totalPages ? page + 1 : null,
+      prevPage: page > 1 ? page - 1 : null,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+  };
+  }
 }

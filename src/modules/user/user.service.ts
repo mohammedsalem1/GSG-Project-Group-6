@@ -15,6 +15,7 @@ import { FeedbackService } from '../feedback/feedback.service';
 import { Badge, RestrictionType } from '@prisma/client';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 import { GamificationService } from '../gamification/gamification.service';
+import { UserListQueryDto } from '../admin/dto/admin-user-list.dto';
 
 @Injectable()
 export class UserService {
@@ -782,12 +783,12 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
       const now = new Date();
 
       const hasBan = user.restrictions.some(
-        r => r.type === 'BAN'
+        r => r.type === RestrictionType.BAN
       );
 
       const hasActiveSuspension = user.restrictions.some(
         r =>
-          r.type === 'SUSPENSION' &&
+          r.type === RestrictionType.SUSPENSION &&
           r.endAt &&
           r.endAt > now
       );
@@ -806,6 +807,8 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
     endAt?: Date,
     externalNote?: string,
   ) {
+    await this.findUserById(userId)
+    
     const restriction = await this.prismaService.userRestriction.create({
       data: {
         userId,
@@ -884,16 +887,21 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
     return this.addRestriction(userId, adminId, RestrictionType.WARNING, reason, undefined, externalNote);
   }
 
-  async addAdminNote( userId: string, adminId: string, reason?: string, externalNote?: string ) {
-    return this.addRestriction(userId, adminId, RestrictionType.ADMIN_NOTE, reason, undefined, externalNote);
+  async addAdminNote( userId: string, adminId: string,externalNote?: string ) {
+    return this.prismaService.adminNote.create({
+      data: {
+        userId,
+        adminId,
+        externalNote,
+      },
+    });;
   }
 
   // ===== Get all users with optional filter =====
-    async getUsersForAdmin(
-      status?: 'ACTIVE' | 'SUSPENDED' | 'BANNED',
-      search?: string
-    ) {
+  async getUsersForAdmin(query: UserListQueryDto) {
+      const { status, search, sort, page = 1, limit = 10 } = query;
 
+      // 1️⃣ Fetch users matching search
       const users = await this.prismaService.user.findMany({
         where: search
           ? {
@@ -903,47 +911,28 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
               ],
             }
           : {},
+        orderBy: { createdAt: sort === 'oldest' ? 'asc' : 'desc' },
         select: {
           id: true,
           userName: true,
           email: true,
           restrictions: true,
           badges: {
-            select: {
-              badge: {
-                select: {
-                  id: true,
-                  name: true,
-                  icon: true,
-                },
-              },
-            },
+            select: { badge: { select: { id: true, name: true, icon: true } } },
           },
         },
       });
 
+      // 2️⃣ Get points
       const groupedPoints = await this.prismaService.point.groupBy({
         by: ['userId'],
-        _sum: {
-          amount: true,
-        },
+        _sum: { amount: true },
       });
+      const pointsMap = new Map(groupedPoints.map(p => [p.userId, p._sum.amount || 0]));
 
-      const pointsMap = new Map(
-        groupedPoints.map(p => [p.userId, p._sum.amount || 0])
-      );
-      let activeUsers = 0;
-      let bannedUsers = 0;
-      let suspendedUsers = 0;
-
-      const result = users.map(user => {
-
-      const currentStatus = this.getUserCurrentStatus(user);
-
-      if (currentStatus === 'ACTIVE') activeUsers++;
-      else if (currentStatus === 'BANNED') bannedUsers++;
-      else if (currentStatus === 'SUSPENDED') suspendedUsers++;
-
+      // 3️⃣ Compute current status
+      let result = users.map(user => {
+        const currentStatus = this.getUserCurrentStatus(user);
         return {
           id: user.id,
           name: user.userName,
@@ -958,19 +947,29 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
         };
       });
 
+      // 4️⃣ Filter by status AFTER computing current status
       if (status) {
-        return result.filter(u => u.status === status);
+        result = result.filter(u => u.status === status);
       }
-      
+
+      // 5️⃣ Pagination after filtering
+      const total = result.length;
+      const totalPages = Math.ceil(total / limit);
+      const start = (page - 1) * limit;
+      const paginatedUsers = result.slice(start, start + limit);
+
       return {
-        stats: {
-          active: activeUsers,
-          banned: bannedUsers,
-          suspended: suspendedUsers,
+        users: paginatedUsers,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
-        users: result,
-    }
-    }
+      };
+}
 
     async getUsersStats() {
       const users = await this.prismaService.user.findMany({
@@ -999,5 +998,104 @@ async updateUserSkill(userId: string, skillId: string, dto: UpdateUserSkillDto) 
         suspended: suspendedUsers,
       };
     }
+
+
+    async getAdminNotesByUser(userId: string) {
+      return await this.prismaService.adminNote.findMany({
+      where: { userId },
+      select: {
+        adminId: true,
+        externalNote: true,
+        createdAt: true,
+      },
+    });
+    }
+
+        // get OverView User 
+    async getOverviewUserForAdmin(userId: string) {
+      const [profile, adminNotes] = await Promise.all([
+        this.getPublicUserProfile(userId),
+        this.getAdminNotesByUser(userId),
+      ]);
+
+      return {
+        profile,
+        adminNotes,
+      };
+    }
+      
+    // Get activity log for a user
+  async getUserActivityLog(userId: string) {
+    // 1️ Fetch all Admin Notes for the user
+    const adminNotes = await this.prismaService.adminNote.findMany({
+      where: { userId },
+      select: {
+        adminId: true,
+        externalNote: true,
+        createdAt: true,
+      },
+    });
+
+    // 2️⃣ Fetch all User Restrictions for the user
+    const restrictions = await this.prismaService.userRestriction.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        type: true,      // e.g., BANNED, SUSPENDED, WARNING
+        reason: true,
+        endAt: true,
+        createdAt: true,
+      },
+    });
+
+    const restrictionIds = restrictions.map(r => r.id);
+
+    // 3️⃣ Fetch AuditLogs linked to these restrictions
+    const restrictionLogs = await this.prismaService.auditLog.findMany({
+      where: {
+        entity: 'UserRestriction',
+        entityId: { in: restrictionIds },
+        action: 'CREATE', // only creation logs
+      },
+      select: {
+        entityId: true,
+        adminId: true,
+        metadata: true,
+        createdAt: true,
+      },
+    });
+
+    // 4️⃣ Merge Admin Notes and Restrictions into a single activity array
+    const activityLog = [
+      // Map Admin Notes
+      ...adminNotes.map(note => ({
+        entity: 'AdminNote',
+        type: 'ADMIN_NOTE',
+        adminId: note.adminId,
+        externalNote: note.externalNote,
+        createdAt: note.createdAt,
+      })),
+      // Map User Restrictions + related audit log
+      ...restrictionLogs.map(log => {
+        const restriction = restrictions.find(r => r.id === log.entityId);
+        if (!restriction) return null;
+
+        return {
+          entity: 'UserRestriction',
+          type: restriction.type,
+          adminId: log.adminId,
+          reason: restriction.reason,
+          endAt: restriction.endAt,
+          metadata: log.metadata || null,
+          createdAt: log.createdAt,
+        };
+      }).filter(Boolean), // remove nulls
+    ];
+
+    // 5️⃣ Sort activity by createdAt descending (latest first)
+    activityLog.sort((a, b) => b!.createdAt.getTime() - a!.createdAt.getTime());
+
+    return activityLog;
+  }
   }
 

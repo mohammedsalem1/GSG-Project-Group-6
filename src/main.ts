@@ -54,6 +54,13 @@ async function bootstrap() {
     .addTag('feedbacks', 'feedbacks panel endpoints')
     .addTag('gamification', 'Badges and points')
     .addTag('admin', 'Admin panel endpoints')
+    // .addTag('Admin - Dashboard', 'Admin dashboard analytics')
+    // .addTag('Admin - User List', 'Admin user management')
+    // .addTag('Admin - Sessions', 'Admin session management')
+    // .addTag('Admin - Swaps', 'Admin swap management')
+    // .addTag('Admin - Skills', 'Admin skill management')
+    // .addTag('Admin - Badges', 'Admin badge management')
+    // .addTag('Admin - Audit', 'Admin audit logs')
     .addBearerAuth(
       {
         type: 'http',

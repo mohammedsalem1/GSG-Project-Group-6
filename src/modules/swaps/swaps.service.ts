@@ -22,11 +22,16 @@ import { CreateSwapRequestDto, SwapRequestsQueryDto } from './dto/swaps.dto';
 import {
   AdminSwapsListResponseDto,
   AdminSwapsQueryDto,
+  AdminUserSwapsQueryDto,
 } from '../admin/dto/admin-swaps.dto';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class SwapsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+        private readonly prismaService: PrismaService ,
+        private readonly userService: UserService
+  ) {}
   private readonly logger = new Logger(SwapsService.name);
 
   async createSwapRequest(requesterId: string, dto: CreateSwapRequestDto) {
@@ -879,4 +884,158 @@ export class SwapsService {
 
     return Buffer.from(csvContent, 'utf-8');
   }
+
+  // Get Swap Request 
+  async getUserSwapsForAdmin(
+  userId: string,
+  query: AdminUserSwapsQueryDto,
+) {
+  const {
+    status,
+    sort = 'newest',
+    startDate,
+    endDate,
+    direction,
+  } = query;
+
+   const user = await this.userService.findUserById(userId);    
+    if (!user) {
+          throw new BadRequestException('the user not found')
+    }
+    const pagination = this.prismaService.handleQueryPagination(query);
+    const { page, ...paginationArgs } = pagination;
+
+
+  // ===== Build where clause dynamically =====
+  const whereClause: any = {};
+
+  // Filter by direction (SENT / RECEIVED)
+  if (direction === 'SENT') {
+    whereClause.requesterId = userId;
+  }
+
+  if (direction === 'RECEIVED') {
+    whereClause.receiverId = userId;
+  }
+
+  // Filter by status
+  if (status) {
+    whereClause.status = status;
+  }
+
+  // Filter by date range
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    whereClause.createdAt = {
+      gte: start,
+      lte: end,
+    };
+  }
+
+  // ===== Get swaps =====
+  const swaps = await this.prismaService.swapRequest.findMany({
+    where: whereClause,
+    include: {
+      requester: {
+        select: {
+          id: true,
+          userName: true,
+          image: true,
+        },
+      },
+      receiver: {
+        select: {
+          id: true,
+          userName: true,
+          image: true,
+        },
+      },
+      offeredUserSkill: {
+        select: {
+          skill: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+      requestedUserSkill: {
+        select: {
+          skill: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      startAt: sort === 'newest' ? 'desc' : 'asc',
+    },
+    skip:pagination.skip,
+    take: pagination.take,
+  });
+
+  // ===== Total count =====
+  const total = await this.prismaService.swapRequest.count({
+    where: whereClause,
+  });
+
+  // ===== Format result based on direction =====
+  const data = swaps.map((swap) => {
+    const isSent = swap.requesterId === userId;
+    const otherUser = isSent ? swap.receiver : swap.requester;
+    return {
+      id: swap.id,
+
+      [isSent ? 'receiver' : 'sender']: {
+          id: otherUser.id,
+          userName: otherUser.userName ?? '',
+          image: otherUser.image,
+       },
+
+      status: swap.status,    
+      requestType: swap.message ? 'Free Session' : 'Skill Swap',
+      requestedSkill: {
+        id: swap.requestedUserSkill.skill.id,
+        name: swap.requestedUserSkill.skill.name,
+      },
+      offeredSkill: swap.offeredUserSkill
+        ? {
+            id: swap.offeredUserSkill.skill.id,
+            name: swap.offeredUserSkill.skill.name,
+          }
+        : null,
+      dateTime: swap.startAt,
+    };
+  });
+  const limit = query.limit!
+  // ===== Pagination calculations =====
+  const totalPages = Math.ceil(total /limit);
+
+  return {
+    user:{
+      id: user.id,
+      userName: user.userName,
+      image: user.image,
+      email:user.email
+    },
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      nextPage: page < totalPages ? page + 1 : null,
+      prevPage: page > 1 ? page - 1 : null,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+  };
+}
 }

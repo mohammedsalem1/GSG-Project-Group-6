@@ -1,7 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Availability, Prisma, SkillLevel } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsString, IsBoolean, IsUUID, IsOptional, IsArray, ValidateNested, IsNumber, IsEnum, ArrayNotEmpty, ArrayMinSize } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsUUID,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsEnum,
+  ArrayNotEmpty,
+  ArrayMinSize,
+  ArrayMaxSize,
+} from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class CategoryResponseDto {
@@ -12,7 +24,6 @@ export class CategoryResponseDto {
   @ApiProperty({})
   @IsString()
   name: string;
-
 
   @ApiProperty({})
   @IsOptional()
@@ -33,8 +44,6 @@ export class SkillDto {
   @ApiProperty()
   @IsString()
   name: string;
-
- 
 }
 
 export class CategorySkillsDto {
@@ -73,15 +82,13 @@ export class SkillInfoDto {
   // language: string;
 
   @ApiProperty()
-  category:CategoryResponseDto 
+  category: CategoryResponseDto;
 }
 
 export class ProviderDto {
-
   @ApiProperty()
   @IsString()
   userId: string;
-
 
   @ApiProperty()
   @IsString()
@@ -103,9 +110,8 @@ export class ProviderDto {
 
   @ApiProperty()
   @IsNumber()
-  totalFeedbacks: number | undefined ;
+  totalFeedbacks: number | undefined;
 }
-
 
 export class LatestReviewDto {
   @ApiProperty()
@@ -121,8 +127,6 @@ export class LatestReviewDto {
   @IsOptional()
   @IsString()
   comment: string | null;
-  
-
 }
 
 export class ReviewsSummaryDto {
@@ -152,16 +156,13 @@ export class UserSkillDetailsResponseDto {
   @IsString()
   sessionLanguage: string;
 
-
   @ApiProperty()
   @IsString()
   skillDescription: string;
 
-  
-
   @ApiProperty()
   @IsString()
-  userSkillId:string
+  userSkillId: string;
 
   @ApiProperty()
   @Type(() => ReviewsSummaryDto)
@@ -178,9 +179,7 @@ export class UserSkillDetailsResponseDto {
   countSessions: number;
 }
 
-
 export class FilterSkillDto extends PaginationDto {
-
   @ApiPropertyOptional({ example: 'WEEKENDS', enum: Availability })
   @IsOptional()
   @IsEnum(Availability)
@@ -204,12 +203,10 @@ export class FilterSkillDto extends PaginationDto {
   level?: SkillLevel;
 }
 
-
-
-export class SearchSkillDto extends PaginationDto  {
+export class SearchSkillDto extends PaginationDto {
   @ApiProperty()
   @IsString()
-  name:string
+  name: string;
 }
 
 export class ProviderWithSwapsDto {
@@ -217,7 +214,6 @@ export class ProviderWithSwapsDto {
   @IsString()
   userId: string;
 
-  
   @ApiProperty()
   @IsString()
   userName: string;
@@ -230,8 +226,6 @@ export class ProviderWithSwapsDto {
   @ApiProperty()
   @IsString()
   level: string;
-
-
 
   @ApiProperty({ nullable: true })
   @IsOptional()
@@ -255,7 +249,6 @@ export class ProviderWithSwapsDto {
   totalFeedbacks: number;
 }
 
-
 export class SearchUserSkillResponseDto {
   @ApiProperty({ type: SkillInfoDto })
   skill: SkillInfoDto;
@@ -265,9 +258,8 @@ export class SearchUserSkillResponseDto {
 }
 
 export class PopularSkillResponseDto {
-  
-  @ApiProperty({type: () => SkillDto})
-  skill:SkillDto
+  @ApiProperty({ type: () => SkillDto })
+  skill: SkillDto;
 
   @ApiProperty()
   usersCount: number;
@@ -293,15 +285,20 @@ export class SessionDto {
   createdAt: Date;
 }
 
-
 export class UpdateUserCategoriesDto {
-  @ApiProperty({example:[
-    "e209a34c-3b8a-4a63-9bf7-4d40d942b684",
-    "bbcf9e3a-3c46-4a3b-aa16-92c3a921e59d",
-    "e05a1bfd-e94d-402b-9697-11c99ee0976c"  
-  ]
-})
+  @ApiProperty({
+    example: [
+      'e209a34c-3b8a-4a63-9bf7-4d40d942b684',
+      'bbcf9e3a-3c46-4a3b-aa16-92c3a921e59d',
+      'e05a1bfd-e94d-402b-9697-11c99ee0976c',
+    ],
+    description: 'Selected category IDs (minimum 1, maximum 5)',
+    maxItems: 5,
+    minItems: 1,
+  })
   @IsArray()
+  @ArrayMinSize(1, { message: 'Select at least one category' })
+  @ArrayMaxSize(5, { message: 'You can select up to 5 categories' })
   @ArrayNotEmpty({ message: 'You must select at least 3 categories' })
   @ArrayMinSize(3, { message: 'You must select at least 3 categories' })
   selectedCatIds: string[];

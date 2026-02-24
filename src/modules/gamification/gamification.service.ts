@@ -4,6 +4,7 @@ import { Prisma, PointType, Badge } from '@prisma/client';
 import { UserBadgeWithBadge } from './types/userBadge.type';
 import { PrismaService } from 'src/database/prisma.service';
 import { EarnedBadgeDto, LockedBadgeDto } from '../admin/dto/admin-get-locked-badge.dto';
+import { AdjustUserPointsDto, PointActionType } from '../admin/dto/admin-adjust-points-user.dto';
 
 
 
@@ -262,4 +263,41 @@ export class GamificationService {
       lockedBadges,
     };
  }
+
+
+ async adjustUserPoints(userId: string, dto: AdjustUserPointsDto) {
+    const user = await this.prismaService.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // تحويل points حسب ActionType
+    const amount = dto.actionType === PointActionType.ADD ? dto.points : -dto.points;
+    const type = dto.actionType;
+
+    // إنشاء سجل Point
+    await this.prismaService.point.create({
+      data: {
+        userId,
+        amount,
+        reason: dto.reason,
+        type:PointType.EARNED,
+      },
+    });
+
+    const aggregate = await this.prismaService.point.aggregate({
+      where: { userId },
+      _sum: { amount: true },
+    });
+
+    const currentPoints = aggregate._sum.amount || 0;
+
+    return {
+      data: {
+        userId,
+        adjustedBy: amount,
+        currentPoints,
+      },
+    };
+  }
+
+
 }

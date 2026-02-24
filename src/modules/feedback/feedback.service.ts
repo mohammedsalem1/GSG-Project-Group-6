@@ -3,7 +3,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { CreateFeedbackDto } from './dto/create-feedback.dto';
+import {  LearningFeedbackDto, TeachingFeedbackDto } from './dto/create-feedback.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { SessionStatus } from '@prisma/client';
 import { SessionService } from '../session/session.service';
@@ -15,39 +15,63 @@ export class FeedbackService {
       private readonly sessionService: SessionService
     ) {}
 
-  async createFeedback(createFeedbackDto: CreateFeedbackDto, giverId: string) {
+  // async createFeedback(createFeedbackDto: CreateFeedbackDto, giverId: string) {
 
-    const session = await this.sessionService.getSessionById(giverId,createFeedbackDto.sessionId)
-    if (session.status !== SessionStatus.COMPLETED) {
-      throw new BadRequestException(
-        "you don't feedback because the session is not completed",
-      );
-    }
+  //   const session = await this.sessionService.getSessionById(giverId,createFeedbackDto.sessionId)
+  //   if (session.status !== SessionStatus.COMPLETED) {
+  //     throw new BadRequestException(
+  //       "you don't feedback because the session is not completed",
+  //     );
+  //   }
 
-    const existingFeedback = await this.prismaService.feedback.findFirst({
-      where: { sessionId: createFeedbackDto.sessionId, giverId },
-    });
+  //   const existingFeedback = await this.prismaService.feedback.findFirst({
+  //     where: { sessionId: createFeedbackDto.sessionId, giverId },
+  //   });
 
-    if (existingFeedback) {
-      throw new BadRequestException(
-        'You already gave feedback for this session',
-      );
-    }
+  //   if (existingFeedback) {
+  //     throw new BadRequestException(
+  //       'You already gave feedback for this session',
+  //     );
+  //   }
 
-    const receiverId =
-      session.hostId === giverId ? session.attendeeId : session.hostId;
-    const { sessionId, ...feedbackFields } = createFeedbackDto;
+  //   const receiverId =
+  //     session.hostId === giverId ? session.attendeeId : session.hostId;
+  //   const { sessionId, ...feedbackFields } = createFeedbackDto;
 
-    return await this.prismaService.feedback.create({
-      data: {
-        sessionId: createFeedbackDto.sessionId,
-        receiverId,
-        giverId,
-        ...feedbackFields,
-      },
-    });
+  //   return await this.prismaService.feedback.create({
+  //     data: {
+  //       sessionId: createFeedbackDto.sessionId,
+  //       receiverId,
+  //       giverId,
+  //       ...feedbackFields,
+  //     },
+  //   });
+  // }
+  async createFeedback(dto: TeachingFeedbackDto | LearningFeedbackDto, giverId: string, role: 'TEACHING' | 'LEARNING') {
+  const session = await this.sessionService.getSessionById(giverId, dto.sessionId);
+  if (session.status !== 'COMPLETED') {
+    throw new BadRequestException("Session is not completed");
   }
 
+  const existingFeedback = await this.prismaService.feedback.findFirst({
+    where: { sessionId: dto.sessionId, giverId },
+  });
+  if (existingFeedback) {
+    throw new BadRequestException("You already gave feedback for this session");
+  }
+
+  const receiverId = session.hostId === giverId ? session.attendeeId : session.hostId;
+  const { sessionId, ...feedbackFields } = dto;
+
+  const feedbackData: any = { sessionId, receiverId, giverId, role };
+  for (const [key, value] of Object.entries(feedbackFields)) {
+    if (value !== undefined && value !== null) {
+      feedbackData[key] = value;
+    }
+  }
+
+  return this.prismaService.feedback.create({ data: feedbackData });
+}
   async getUserRating(userId: string): Promise<{
     rating: number;
     totalFeedbacks: number;
@@ -88,7 +112,7 @@ export class FeedbackService {
           feedback.sessionStructure,
           feedback.communication,
           feedback.openToFeedback,
-        ].filter((v): v is number => typeof v === 'number');
+        ].filter((v): v is number => typeof v === 'number' && v !== 0);
 
         if (scores.length === 0) return null;
 

@@ -27,6 +27,7 @@ import {
   OtpType,
   RefreshTokenDto,
   RegisterDto,
+  ResendOtpDto,
   ResetPasswordDto,
   VerifyOtpDto,
 } from './dto/auth.dto';
@@ -72,6 +73,15 @@ export class AuthController {
   async verifyOtp(@Body() verifyOtp: VerifyOtpDto) {
     return this.authService.verifyOTP(verifyOtp);
   }
+
+  @Public()
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Resend OTP' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ description: 'Resend otp successfully' })
+  async resendOtp(@Body() dto: ResendOtpDto) {
+    return this.authService.resendOtp(dto.email, dto.type);
+ }
 
   @Post('login')
   @Public()
@@ -133,6 +143,7 @@ export class AuthController {
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
   }
+
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)

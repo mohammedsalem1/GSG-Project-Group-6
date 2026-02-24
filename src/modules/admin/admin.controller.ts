@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Req,
   Res,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,6 +23,9 @@ import {
   ApiNotFoundResponse,
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
+  ApiUnauthorizedResponse,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
@@ -33,6 +37,7 @@ import {
   AdminSwapsListResponseDto,
   AdminSwapsQueryDto,
   AdminSwapExportDto,
+  AdminUserSwapsQueryDto,
 } from './dto/admin-swaps.dto';
 import {
   AdminSessionsListResponseDto,
@@ -49,10 +54,15 @@ import type { RequestUser } from 'src/common/types/user.types';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
 import type { Request, Response } from 'express';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { Public } from '@prisma/client/runtime/library';
+import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
+import { AddNoteToUser, AddUserActionDto, AddUserActionWithEndDateDto } from './dto/admin-add-user-action.dto';
+import { UserListQueryDto } from './dto/admin-user-list.dto';
 
 @ApiTags('admin')
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
+// add Amin Role ---
 @Roles(Role.ADMIN)
 @ApiBearerAuth('JWT-auth')
 export class AdminController {
@@ -352,4 +362,369 @@ export class AdminController {
     res.setHeader('Content-Disposition', 'attachment; filename="swaps.csv"');
     res.send(file);
   }
+
+  @Get('badges')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({summary: 'Get all system badges with total users count'})
+  @ApiOkResponse({description: 'Badges retrieved successfully'})
+  async getAllBadges() {
+    return this.adminService.getAllBadgesWithCount();
+  }
+
+    // update badge requirment
+    @Patch(':badgeId/requirement')
+    @ApiOperation({ summary: 'Update badge requirement' })
+    @ApiParam({ name: 'badgeId', example: 'uuid-badge-id' })
+    @ApiOkResponse({ description: 'Requirement updated successfully'})
+    @ApiNotFoundResponse({description: 'the badge not found'})
+    async updateBadgeRequirement(
+      @Param('badgeId') badgeId: string,
+      @Body() dto: UpdateBadgeRequirementDto,
+    ) {
+          return this.adminService.updateBadgeRequirement(badgeId, dto.requirement);
+    }
+  
+   // ==============================
+  // 👤 USER ACTIONS
+  // ==============================
+
+  @Post(':userId/ban')
+  @ApiOperation({ summary: 'Ban user' })
+  async banUser(@Param('userId') userId: string,@CurrentUser() admin:RequestUser, @Body() body: AddUserActionDto) {
+    return this.adminService.banUser( userId, admin.id, body.reason );
+  }
+
+  @Post(':userId/unban')
+  @ApiOperation({ summary: 'Unban user' })
+  async unbanUser(@Param('userId') userId: string,@CurrentUser() admin:RequestUser) {
+    return this.adminService.unbanUser(userId, admin.id);
+  }
+
+  @Post(':userId/suspend')
+  @ApiOperation({ summary: 'Suspend user' })
+  async suspendUser(@Param('userId') userId: string, @CurrentUser() admin:RequestUser, @Body() body: AddUserActionWithEndDateDto) {
+    return this.adminService.suspendUser( userId, admin.id, body.reason ,body.endAt );
+  }
+
+  // @Post(':userId/unsuspend')
+  // async unsuspendUser(@Param('userId') userId: string, @CurrentUser() admin: RequestUser) {
+  //   return this.adminService.unsuspendUser({ userId, adminId: user.id });
+  // }
+
+  @Post(':userId/warn')
+  @ApiOperation({ summary: 'Warn user' })
+  async warnUser(@Param('userId') userId: string, @CurrentUser() admin: RequestUser, @Body() body: AddUserActionDto) {
+    return this.adminService.warnUser(userId, admin.id, body.reason );
+  }
+
+  @Post(':userId/note')
+  @ApiOperation({ summary: 'Add admin note to user' })
+  async addAdminNote(@Param('userId') userId: string, @CurrentUser() admin: RequestUser, @Body() body: AddNoteToUser) {
+    return this.adminService.addAdminNote(userId, admin.id, body.externalNote);
+  }
+
+    @Get('users')
+    @ApiOperation({ summary: 'Get all users for admin with optional filters' })
+    @ApiOkResponse({
+      description: 'Get users successfully',
+      schema: {
+        example: {
+          success: true,
+          data: {
+            "users": [
+                {
+                  "id": "user-id",
+                  "name": "user-name ",
+                  "email": "user-email",
+                  "status": "user-active",
+                  "points": "user-points",
+                  "badges": []
+                },   
+              ],
+              "pagination": {
+                "total": 1,
+                "page": 1,
+                "limit": 10,
+                "totalPages": 1,
+                "hasNextPage": false,
+                "hasPrevPage": false
+              }
+          },
+        },
+      },
+    })
+    async getAllUsersForAdmin(
+      @Query() query: UserListQueryDto,
+    ) {
+      return this.adminService.getUsersForAdmin(query);
+    }
+
+
+
+    @Get('users/stats')
+    @ApiUnauthorizedResponse({
+        description: 'Unauthorized - Invalid or missing token',
+    })
+    @ApiOkResponse({
+          description: 'Get users statistics successfully',
+          schema: {
+            example: {
+              success: true,
+              "data": {
+                  "totalUsers": 120,
+                  "active": 119,
+                  "banned": 1,
+                  "suspended": 0
+                }
+              }
+          } 
+      }
+    )
+    @ApiOperation({ summary: 'Get users statistics for dashboard like totalUsers,active,banned,suspended' })
+    @Roles(Role.ADMIN)
+    async getUsersStats() {
+      return this.adminService.getUsersStats();
+    }
+
+   /**
+   * User Overview endpoint
+   * Returns user profile + all admin notes
+   */
+  @Get(':id/overview')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get user overview (profile + all admin notes)' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiOkResponse({
+    description: 'User overview fetched successfully',
+    schema: {
+      example: {
+        profile: {
+          id: 'user-uuid',
+          userName: 'John Doe',
+          email: 'john@example.com',
+          status: 'ACTIVE',
+          createdAt: '2026-02-22T10:00:00Z'
+        },
+        adminNotes: [
+          {
+            adminId: 'admin-uuid',
+            externalNote: 'Checked user activity',
+            createdAt: '2026-02-22T12:30:00Z'
+          },
+          {
+            adminId: 'admin-uuid2',
+            externalNote: 'Internal observation',
+            createdAt: '2026-02-20T09:15:00Z'
+          }
+        ]
+      }
+    }
+  })
+  async getOverviewUserForAdmin(@Param('id') userId: string) {
+    return this.adminService.getOverviewUserForAdmin(userId);
+  }
+
+   // ===== Get User Activity Log =====
+  @Get('users/:id/activity-log')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get activity log for a user (Admin Notes + User Restrictions)' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiOkResponse({
+    description: 'User activity log retrieved successfully',
+    schema: {
+      example: [
+        {
+          entity: 'AdminNote',
+          type: 'ADMIN_NOTE',
+          adminId: 'admin-uuid',
+          externalNote: 'Internal observation',
+          createdAt: '2026-02-22T12:30:00Z'
+        },
+        {
+          entity: 'UserRestriction',
+          type: 'BANNED',
+          adminId: 'admin-uuid',
+          reason: 'Violation of rules',
+          endAt: '2026-03-01T00:00:00Z',
+          metadata: { oldStatus: 'ACTIVE', newStatus: 'BANNED' },
+          createdAt: '2026-02-21T08:00:00Z'
+        }
+      ]
+    }
+  })
+  async getUserActivityLog(@Param('id') userId: string) {
+    return this.adminService.getUserActivityLog(userId);
+  }
+
+
+  /////////////
+  @Get(':userId/swaps')
+  @ApiOperation({
+    summary: 'Get user swaps (Sent or Received)',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+  })
+  @ApiOkResponse({
+    description: 'User swaps retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          data: [
+            {
+              id: 'swap-id',
+              user: {
+                id: 'other-user-id',
+                userName: 'John',
+                image: 'image-url',
+              },
+              requestType: 'Skill Swap',
+              requestedSkill: {
+                id: 'skill-id',
+                name: 'JavaScript',
+              },
+              offeredSkill: {
+                id: 'skill-id',
+                name: 'React',
+              },
+              status: 'PENDING',
+              dateTime: '2026-02-22T10:00:00.000Z',
+            },
+          ],
+          pagination: {
+            total: 20,
+            page: 1,
+            limit: 10,
+            totalPages: 2,
+            nextPage: 2,
+            prevPage: null,
+            hasNextPage: true,
+            hasPrevPage: false,
+          },
+        },
+      },
+    },
+  })
+  async getUserSwapsForAdmin(
+    @Param('userId') userId: string,
+    @Query() query: AdminUserSwapsQueryDto,
+  ) {
+    return this.adminService.getUserSwapsForAdmin(userId, query);
+  }
+
+
+ // Get userSession
+  @Get(':userId/sessions')
+  @ApiOperation({
+    summary: 'Get all User sessions for admin dashboard'})
+  @ApiOkResponse({
+    description: 'User sessions retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        user: {
+          id: 'user-uuid',
+          userName: 'John Doe',
+          email: 'john@example.com',
+          image: 'https://example.com/avatar.jpg'
+        },
+        data: [
+          {
+            id: 'session-uuid',
+            scheduledAt: '2026-02-22T10:00:00.000Z',
+            endsAt: '2026-02-22T11:00:00.000Z',
+            status: 'COMPLETED',
+            duration: 60, // minutes
+            skillName: 'JavaScript',
+            partner: {
+              id: 'partner-uuid',
+              userName: 'Jane Smith',
+              image: 'https://example.com/avatar2.jpg'
+            }
+          },
+        ],
+        pagination: {
+          total: 50,
+          page: 1,
+          limit: 10,
+          totalPages: 5,
+          nextPage: 2,
+          prevPage: null,
+          hasNextPage: true,
+          hasPrevPage: false
+        }
+      }
+    }
+  })
+   @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    example: 'uuid-user-id',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - Admin access required',
+  })
+  async getAllSessionsForAdmin(
+    @Param('userId') userId: string,
+    @Query() query: AdminSessionsQueryDto,
+  ) {
+    return this.adminService.getUserSessionsForAdmin(userId , query);
+  }
+
+
+  // get User Badge
+  @Get('badge/:userId')
+  @ApiOperation({
+    summary: 'Get user badges (earned and locked)',
+    description:
+      'Returns earned badges (with unlock time) and locked badges (with progress percentage and remaining sessions).',
+  })
+  @ApiParam({
+    name: 'userId',
+    example: 'uuid-user-id',
+    description: 'The ID of the user',
+  })
+  @ApiOkResponse({
+  description: 'User badges retrieved successfully',
+  schema: {
+    example: {
+      success: true,
+      data: {
+        earned: [
+          {
+            id: 'badge-uuid',
+            name: 'Session Master',
+            icon: 'https://example.com/badge-icon.png',
+            unlockedAt: '2026-02-21T14:30:00Z',
+            progress: '100%' // fully earned
+          }
+        ],
+        locked: [
+          {
+            id: 'badge-uuid-2',
+            name: 'Skill Collector',
+            icon: 'https://example.com/badge-icon2.png',
+            progress: '40/50', // 40 sessions completed out of 50
+            remainingSessions: 10
+          }
+        ]
+      }
+    }
+  }
+})
+  @ApiNotFoundResponse({
+    description: 'User not found',
+  })
+  async getAllUserBadges(
+    @Param('userId') userId: string,
+  ) {
+    return await this.adminService.getAllUserBadges(userId);
+
+  }
 }
+

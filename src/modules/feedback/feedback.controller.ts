@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
 import { CreateReviewDto } from '../reviews/dto/create-review.dto';
-import { CreateFeedbackDto } from './dto/create-feedback.dto';
+import {  LearningFeedbackDto, TeachingFeedbackDto } from './dto/create-feedback.dto';
 
 
 @ApiTags('feedbacks')
@@ -13,58 +13,89 @@ import { CreateFeedbackDto } from './dto/create-feedback.dto';
 export class FeedbackController {
 
       constructor(private readonly feedbackService:FeedbackService){}
-    
-        @Post()
+    // feedback controller
+        // @Post()
+        // @UseGuards(JwtAuthGuard)
+        // @ApiBearerAuth('JWT-auth')
+        // @HttpCode(HttpStatus.CREATED)
+        // @ApiOperation({ summary: 'Create a feedback for a completed session' })
+        // @ApiCreatedResponse({ description: 'create feedback successfully', 
+        //     schema:{
+        //         example:{
+        //             "success": true,
+        //             "data": {
+        //                 "id": "a4310f30-a0a0-4ea8-b499-3543ab73d2a4",
+        //                 "sessionId": "040bf31a-970a-43d2-8e48-4b4e9add969c",
+        //                 "giverId": "395e7a32-7dc0-483b-b264-f6948a31d6b6",
+        //                 "receiverId": "686d452f-ddf9-4b60-8164-391517bc0fe7",
+        //                 "role": "GENERAL",
+        //                 "sessionFocus": 4,
+        //                 "activeParticipation": 4,
+        //                 "learningFocus": 3,
+        //                 "clarity": 3,
+        //                 "patience": 3,
+        //                 "sessionStructure": 3,
+        //                 "communication": 3,
+        //                 "strengths": "Great session!",
+        //                 "improvements": "Great session!",
+        //                 "createdAt": "2026-02-02T23:28:55.554Z"
+        //             }
+        //         }
+        //     }
+        // })
+        // @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+        // @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+        // @ApiBadRequestResponse({description:'session not completed, or review already exists'})
+        // async createReview(
+        //     @Body() createFeedbackDto:CreateFeedbackDto,
+        //     @CurrentUser() user: RequestUser,
+            
+        // ) {
+        //     return await this.feedbackService.createFeedback(createFeedbackDto , user.id)
+        // }
+        @Post('teaching')
         @UseGuards(JwtAuthGuard)
         @ApiBearerAuth('JWT-auth')
         @HttpCode(HttpStatus.CREATED)
-        @ApiOperation({ summary: 'Create a feedback for a completed session' })
-        @ApiCreatedResponse({ description: 'create feedback successfully', 
-            schema:{
-                example:{
-                    "success": true,
-                    "data": {
-                        "id": "a4310f30-a0a0-4ea8-b499-3543ab73d2a4",
-                        "sessionId": "040bf31a-970a-43d2-8e48-4b4e9add969c",
-                        "giverId": "395e7a32-7dc0-483b-b264-f6948a31d6b6",
-                        "receiverId": "686d452f-ddf9-4b60-8164-391517bc0fe7",
-                        "role": "GENERAL",
-                        "sessionFocus": 4,
-                        "activeParticipation": 4,
-                        "learningFocus": 3,
-                        "clarity": 3,
-                        "patience": 3,
-                        "sessionStructure": 3,
-                        "communication": 3,
-                        "strengths": "Great session!",
-                        "improvements": "Great session!",
-                        "createdAt": "2026-02-02T23:28:55.554Z"
-                    }
-                }
-            }
-        })
+        @ApiOperation({ summary: 'Create a feedback for a completed session as a TEACHING role' })
+        @ApiCreatedResponse({ description: 'Teaching feedback created successfully' })
         @ApiInternalServerErrorResponse({ description: 'Internal server error' })
         @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-        @ApiBadRequestResponse({description:'session not completed, or review already exists'})
-        async createReview(
-            @Body() createFeedbackDto:CreateFeedbackDto,
+        @ApiBadRequestResponse({ description: 'Session not completed, or feedback already exists' })
+        async createTeachingFeedback(
+            @Body() dto: TeachingFeedbackDto,
             @CurrentUser() user: RequestUser,
-            
         ) {
-            return await this.feedbackService.createFeedback(createFeedbackDto , user.id)
+            return this.feedbackService.createFeedback(dto, user.id, 'TEACHING');
         }
-
+      
+        @Post('learning')
+        @UseGuards(JwtAuthGuard)
+        @ApiBearerAuth('JWT-auth')
+        @HttpCode(HttpStatus.CREATED)
+        @ApiOperation({ summary: 'Create a feedback for a completed session as a LEARNING OR BOTH role' })
+        @ApiCreatedResponse({ description: 'Learning feedback created successfully' })
+        @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+        @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+        @ApiBadRequestResponse({ description: 'Session not completed, or feedback already exists' })
+        async createLearningFeedback(
+            @Body() dto: LearningFeedbackDto,
+            @CurrentUser() user: RequestUser,
+        ) {
+            return this.feedbackService.createFeedback(dto, user.id, 'LEARNING');
+        }
+        
 
         @Get('rating/:userId')
         @UseGuards(JwtAuthGuard)
         @ApiBearerAuth('JWT-auth')
-        @ApiOperation({ summary: 'Get profile rating for a user' })
+        @ApiOperation({ summary: 'Get profile rating for a user Id' })
         @ApiOkResponse({
             schema: {
             example: {
                 success: true,
                 data: {
-                        receiverId: "f97c5280-bcb2-4f66-8d79-dc77dae3c8e1",
+                        receiverId: "user-id",
                         receiverName: "mohammed",
                         receiverImage: "",
                         rating: 2.8,

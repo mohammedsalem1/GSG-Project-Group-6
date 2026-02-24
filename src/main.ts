@@ -7,6 +7,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { SkillLevel } from '@prisma/client';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -53,6 +54,13 @@ async function bootstrap() {
     .addTag('feedbacks', 'feedbacks panel endpoints')
     .addTag('gamification', 'Badges and points')
     .addTag('admin', 'Admin panel endpoints')
+    // .addTag('Admin - Dashboard', 'Admin dashboard analytics')
+    // .addTag('Admin - User List', 'Admin user management')
+    // .addTag('Admin - Sessions', 'Admin session management')
+    // .addTag('Admin - Swaps', 'Admin swap management')
+    // .addTag('Admin - Skills', 'Admin skill management')
+    // .addTag('Admin - Badges', 'Admin badge management')
+    // .addTag('Admin - Audit', 'Admin audit logs')
     .addBearerAuth(
       {
         type: 'http',
@@ -71,7 +79,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-
+   
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(
     `📚 Swagger docs available at: http://localhost:${port}/api/docs`,

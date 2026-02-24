@@ -97,23 +97,39 @@ export class AuthService {
       throw new BadRequestException('Invalid email');
     }  
     if (type === OtpType.VERIFY_EMAIL && user.isVerified && !user.otpCode) {
-      return 'Email is already verified'
+         return  'Email is already verified' ;
     }
     await this.validateOtp(user.email , otpCode)
     
     if (type === OtpType.VERIFY_EMAIL) {
       await this.userService.verifyUserEmail(email);
+          // Generate tokens
+      const { accessToken, refreshToken } = await this.generateTokens({
+        sub: user.id,
+        email: user.email,
+        userName: user.userName ?? '',
+        role: user.role,
+      });
 
-      return 'Email verified successfully'
-    }
+      // Save refresh token to database
+      await this.saveRefreshToken(user.id, refreshToken);
+      const { password: _, ...userWithoutPassword } = user;
+
+      return {
+         accessToken,
+         refreshToken,
+         userEmail: userWithoutPassword.email,
+         message: 'Email verified successfully'
+        }
+       }
 
     if (type === OtpType.RESET_PASSWORD) {
-
+      await this.userService.clearOtp(email)
       return  'Reset code verified'
     }
   }
 
-
+ //
   async validateOtp(email: string, otp: string) {
     const user = await this.userService.findUserByEmail(email);
 
@@ -388,7 +404,7 @@ export class AuthService {
     // const otp = generateOtp();
     const hashedOtp = await hashOTP(otp);
 
-    await this.userService.updateOtp(hashedOtp, email);
+    await this.userService.updateOtp(hashedOtp , email);
 
     // const userEmailPayload: UserEmailPayload = {
     //   id: foundUser.id,
@@ -406,7 +422,12 @@ export class AuthService {
   }
   async resetPassword(dto: ResetPasswordDto): Promise<string> {
     const { email ,password } = dto;
-
+     
+    const user = await this.userService.findUserByEmail(email);
+    
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.isVerified) {throw new BadRequestException('user not verified');}
+    if (!user.isActive) throw new UnauthorizedException('Your account has been deactivated');
 
     const hashedPassword = await hashPassword(password);
 
@@ -414,4 +435,26 @@ export class AuthService {
 
     return 'Password reset successfully';
   }
+
+  async resendOtp(email: string, type: OtpType): Promise<{ message: string}> {
+      const user = await this.userService.findUserByEmail(email);
+      if (!user) throw new NotFoundException('User not found');
+
+      if (type === OtpType.VERIFY_EMAIL && user.isVerified) {
+        return { message: 'Email is already verified' };
+      }
+
+      if (!user.isVerified && type === OtpType.RESET_PASSWORD) {
+        throw new BadRequestException('User is not verified yet');
+      }
+
+      const otp = '123456';
+      const hashedOtp = await hashOTP(otp);
+
+      await this.userService.updateOtp(hashedOtp, email);
+
+      // await this.mailService.sendOtpEmail(...)
+
+      return { message: 'OTP resent successfully' }; 
+ }
 }

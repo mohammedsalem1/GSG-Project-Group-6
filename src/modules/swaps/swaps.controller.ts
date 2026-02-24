@@ -193,7 +193,45 @@ export class SwapsController {
   @ApiParam({ name: 'id', description: 'Swap request id' })
   @ApiOkResponse({
     description: 'Swap request fetched successfully',
-    schema: { example: swapRequestDetailsExample },
+     schema: {
+    example: {
+      success: true,
+      data: {
+        id: 'bb55a6c3-1475-4d4b-aa0e-ce74825e56df',
+        status: 'COMPLETED',
+        createdAt: '2026-02-14T16:45:06.424Z',
+        message: null, 
+        session: {
+          id: '9430d242-8ecd-44de-a09b-d99f367b6019',
+          status: 'COMPLETED',
+          scheduledAt: '2026-02-04T14:00:00.000Z',
+          endsAt: '2026-02-04T15:30:00.000Z',
+        },
+        counterParty: {
+          id: 'c1157631-1a13-4904-a00d-11e76e709ca0',
+          userName: 'ahmed',
+          image: 'https://ik.imagekit.io/lmx6txikn/users/1771595183764_scaled_1000000020_m5bEOaR_0.jpg',
+          skill: {
+            id: '7bf3e5e3-b023-47b7-894f-fd01d77ac161',
+            name: 'Node.js',
+            description: null,
+            category: {
+              id: 'e05a1bfd-e94d-402b-9697-11c99ee0976c',
+              name: 'Backend',
+            },
+          },
+          level: 'BEGINNER',
+          skillDescription: 'Node.js',
+          yearsOfExperience: 2,
+          sessionLanguage: 'Arabic',
+        },
+        requesterId: 'f97c5280-bcb2-4f66-8d79-dc77dae3c8e1',
+        receiverId: 'c1157631-1a13-4904-a00d-11e76e709ca0',
+        offeredUserSkillId: '472cbbfe-58ff-4065-9332-648e18038c80',
+        requestedUserSkillId: '23043905-e796-47ee-9f9c-03581109d46a',
+      },
+    },
+  },
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Swap request not found' })

@@ -1,14 +1,17 @@
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { SkillsService } from './skills.service';
 import { Type } from 'class-transformer';
 import { Public } from '../auth/decorators/public.decorator';
-import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, UpdateUserCategoriesDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
+import { CategoryResponseDto, CategorySkillsDto, FilterSkillDto, PopularSkillResponseDto, SearchSkillDto, SearchUserSkillResponseDto, SkillDto, UpdateUserCategoriesDto, UserSkillDetailsResponseDto } from './dto/skills.dto';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from 'src/common/types/user.types';
+import { CreateSkillDto, SkillResponseDto } from './dto/create-skill.dto';
+import { Skill, SkillLevel } from '@prisma/client';
+import { TrendingSkillResponseDto } from './dto/trendingSkillResponse.dto';
 
 
 @ApiTags('skills')
@@ -19,7 +22,27 @@ export class SkillsController {
      private readonly skillService:SkillsService
   ) {}  
   
-  
+  // @Post('create')
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth('JWT-auth')
+  // @ApiOperation({ summary: 'add skill from user'})
+  // @ApiCreatedResponse({ description: 'Created Skill successfully'})
+  // @HttpCode(HttpStatus.CREATED)
+  // async findOrCreateSkill(@Body() dto: CreateSkillDto): Promise<{ skill:SkillResponseDto, alreadyExists: boolean }> {
+  //   return this.skillService.findOrCreateSkill(dto.name);
+  // }
+
+
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all active skills'})
+  @ApiOkResponse({ description: 'Get all active skills successfully', type:SkillDto})
+  @HttpCode(HttpStatus.OK)
+  async getAllSkills():Promise<SkillDto[]> {
+    return this.skillService.getAllSkills()
+  }
   @Get('categories')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -47,11 +70,22 @@ export class SkillsController {
    ):Promise<CategorySkillsDto> {
        return this.skillService.getSkillsByCategory(categoryId)
    }
-   
+
+   @Get('autocomplete')
+   @UseGuards(JwtAuthGuard)
+   @ApiBearerAuth('JWT-auth')
+   @HttpCode(HttpStatus.OK)
+   @ApiOperation({ summary: 'Search skills for autocomplete' })
+   @ApiQuery({ name: 'name', required: false, description: 'Partial or full skill name', type: String })
+   async autocomplete(@Query('name') name: string) {
+       return this.skillService.autocomplete(name);
+   }
+
+  
    @Get('search')
    @UseGuards(JwtAuthGuard)
    @ApiBearerAuth('JWT-auth')
-   @ApiOperation({ summary: 'search skills'})
+   @ApiOperation({ summary: 'Get all users who have this skill by search skill'})
    @ApiQuery({name: 'name',description: 'name Skill or category',required: true})
    @HttpCode(HttpStatus.OK)
    @ApiOkResponse({ description: 'get skills search successfully' ,  schema: {
@@ -82,8 +116,9 @@ export class SkillsController {
         return this.skillService.searchSkills(query)
    }
 
+
    @Get('discover')
-   @ApiOperation({ summary: 'filter skills'})
+   @ApiOperation({ summary: 'Get all users who have this skill by filter skill'})
    @UseGuards(JwtAuthGuard)
    @ApiBearerAuth('JWT-auth')
    @HttpCode(HttpStatus.OK)
@@ -158,4 +193,56 @@ export class SkillsController {
    return this.skillService.getRecommendedUserSkills(user.id)
   }
 
+
+    @Get(':skillId/similar')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Get one similar user offering the same skill' })
+    @ApiOkResponse({
+      description: 'Get one similar user successfully',
+      type: SearchUserSkillResponseDto,
+    })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+    @ApiNotFoundResponse({ description: 'Skill not found or no similar users' })
+    @ApiParam({
+      name: 'skillId',
+      description: 'Skill ID',
+      required: true,
+    })
+    @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+    async getSimilarUserBySkill(
+      @Param('skillId') skillId: string,
+      @CurrentUser() user:RequestUser
+    ): Promise<{ data: SearchUserSkillResponseDto }> {
+      const currentUserId = user.id;
+      return this.skillService.getOneSimilarUserBySkill(
+        skillId,
+        currentUserId,
+      );
+    }
+    
+
+  // trending skill
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Get('trending')
+    @ApiOperation({ summary: 'Get trending skills this week based on sessions' })
+    @ApiOkResponse({
+      description: 'Trending skills by sessions retrieved successfully',
+      type: TrendingSkillResponseDto , 
+    })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+    @ApiInternalServerErrorResponse({ description: 'Internal server error' })
+    async getTrendingSkillsThisWeek(): Promise<TrendingSkillResponseDto[]> {
+      return await this.skillService.getTrendingSkillsThisWeek();    
+    }
+    
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Get('learned-skills')
+    @ApiOperation({ summary: 'get learned skill count' })
+    async getLearnedSkillsCount(@CurrentUser() user:RequestUser) {
+      return await this.skillService.getLearnedSkillsCount(user.id);
+    }
 } 

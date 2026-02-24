@@ -25,7 +25,7 @@ export class RegisterDto {
   @IsString()
   @MinLength(8)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
-    message: 'Password too weak',
+    message: 'The password consist numbers,small letter,capital latter and special char',
   })
   password: string;
 
@@ -62,6 +62,23 @@ export class VerifyOtpDto {
   @IsString()
   otpCode: string;
    
+  @ApiProperty({
+    example: OtpType.VERIFY_EMAIL,
+    description: `Type of OTP. Allowed values:
+         - VERIFY_EMAIL
+         - RESET_PASSWORD`,
+   })
+  @IsEnum(OtpType)
+  @IsNotEmpty()
+  type: OtpType;
+}
+
+export class ResendOtpDto {
+  @ApiProperty({ example: 'mohammed@gmail.com' })
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
   @ApiProperty({
     example: OtpType.VERIFY_EMAIL,
     description: `Type of OTP. Allowed values:

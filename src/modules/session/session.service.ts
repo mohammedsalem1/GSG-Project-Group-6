@@ -12,10 +12,15 @@ import {
 import { SessionStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { CompleteSessionDto, GetSessionsQueryDto } from './dto';
+import { AdminSessionsQueryDto } from '../admin/dto/admin-sessions.dto';
+import { hostname } from 'os';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class SessionService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+      private readonly prismaService: PrismaService ,
+   ) {}
 
   /**
    * Get user's sessions (as host or attendee)
@@ -308,7 +313,7 @@ export class SessionService {
         prisma.point.create({
           data: {
             userId: session.hostId,
-            amount: 10,
+            amount: 50,
             reason: 'Completed session as host',
             type: 'EARNED',
           },
@@ -316,7 +321,7 @@ export class SessionService {
         prisma.point.create({
           data: {
             userId: session.attendeeId,
-            amount: 10,
+            amount: 50,
             reason: 'Completed session as attendee',
             type: 'EARNED',
           },
@@ -686,4 +691,328 @@ export class SessionService {
 
     return Buffer.from(csvContent, 'utf-8');
   }
+
+
+  
+  /// added Summary session completed
+  async getSessionSummary(userId: string, sessionId: string) {
+  const session = await this.prismaService.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) throw new NotFoundException();
+  if (session.status !== SessionStatus.COMPLETED)
+    throw new BadRequestException();
+
+  // 1️⃣ Duration
+    const durationMinutes = Number(session.duration)
+  console.log(durationMinutes)
+    const hours = Math.floor(durationMinutes / 60);   // 1
+  const minutes = durationMinutes % 60;  
+ 
+
+  const formattedDuration = `${hours}h ${minutes}m`;
+
+  // 2️⃣ Total sessions between both users
+  const totalSessions = await this.prismaService.session.count({
+    where: {
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+  const totalCompletedSessions = await this.prismaService.session.count({
+    where: {
+      status: SessionStatus.COMPLETED,
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+    const totalScheduledSessions = await this.prismaService.session.count({
+    where: {
+      status: SessionStatus.SCHEDULED,
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+    const totalCancelledSessions = await this.prismaService.session.count({
+    where: {
+      status: SessionStatus.CANCELLED,
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+
+  // 3️⃣ Total points for this user
+  const totalPoints = await this.prismaService.point.aggregate({
+    where: { userId },
+    _sum: { amount: true },
+  });
+
+  return {
+    session:session.id,
+    sessionDuration: formattedDuration,
+    totalSessions,
+    totalCompletedSessions,
+    totalScheduledSessions,
+    totalCancelledSessions,
+    totalPoints: totalPoints._sum.amount || 0,
+    gainedPoints: 50,
+  };
+}
+
+
+// Get Session Status Summary for a User
+async getStatusSession(userId: string) {
+  const baseWhere = {
+    OR: [{ hostId: userId }, { attendeeId: userId }],
+  };
+
+  // Total sessions
+  const totalSessions = await this.prismaService.session.count({
+    where: baseWhere,
+  });
+
+  // Group by status to avoid multiple queries
+  const groupedStatuses = await this.prismaService.session.groupBy({
+    by: ['status'],
+    where: baseWhere,
+    _count: {
+      status: true,
+    },
+  });
+
+  // Initialize counters
+  let totalCompletedSessions = 0;
+  let totalScheduledSessions = 0;
+  let totalCancelledSessions = 0;
+
+  groupedStatuses.forEach((item) => {
+    if (item.status === SessionStatus.COMPLETED) {
+      totalCompletedSessions = item._count.status;
+    }
+    if (item.status === SessionStatus.SCHEDULED) {
+      totalScheduledSessions = item._count.status;
+    }
+    if (item.status === SessionStatus.CANCELLED) {
+      totalCancelledSessions = item._count.status;
+    }
+  });
+
+  return {
+    totalSessions,
+    totalCompletedSessions,
+    totalScheduledSessions,
+    totalCancelledSessions,
+  };
+}
+
+  async getUserSessionsForAdmin(
+    userId: string,
+    query: AdminSessionsQueryDto,
+  ) {
+    const {
+      status,
+      sort = 'newest',
+      startDate,
+      endDate,
+      search,
+    } = query;
+    const user = await this.prismaService.user.findUnique({
+      where:{id:userId},
+      select: {
+        id:true,
+        userName     :true,
+        email:true,
+        image:true
+    }})
+
+    if (!user) {
+       throw new BadRequestException('the user not found')
+    }
+    const where: any = {
+      OR: [
+        { hostId: userId },
+        { attendeeId: userId },
+      ],
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    /* ================= DATE FILTER ================= */
+    if (startDate || endDate) {
+      where.scheduledAt = {};
+
+      if (startDate) {
+        where.scheduledAt.gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.scheduledAt.lte = end;
+      }
+    }
+
+    /* ================= SEARCH BY PARTNER NAME ONLY ================= */
+    if (search) {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            {
+              AND: [
+                { hostId: userId },
+                {
+                  attendee: {
+                    userName: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              ],
+            },
+
+            {
+              AND: [
+                { attendeeId: userId },
+                {
+                  host: {
+                    userName: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ];
+    }
+
+    /* ================= PAGINATION ================= */
+    const pagination = this.prismaService.handleQueryPagination(query);
+    const { page, ...paginationArgs } = pagination;
+
+    const [sessions , total] = await Promise.all([
+      this.prismaService.session.findMany({
+        where,
+        select: {
+          id: true,
+          scheduledAt: true,
+          endsAt: true,
+          status: true,
+          duration: true,
+          swapRequest:true,
+
+          skill: {
+            select: { name: true },
+          },
+
+          host: {
+            select: {
+              id: true,
+              userName: true,
+              email: true,   
+              image: true,
+            },
+          },
+
+          attendee: {
+            select: {
+              id: true,
+              userName: true,
+              image: true,   
+            },
+          },
+        },
+
+        orderBy: {
+          scheduledAt: sort === 'oldest' ? 'asc' : 'desc',
+        },
+
+        ...paginationArgs,
+      }),
+      this.prismaService.session.count({ where }),
+    ]);
+
+    /* ================= RESPONSE MAPPING ================= */
+    const data = sessions.map((session) => {
+      const partner = session.host.id === userId ? session.attendee : session.host;
+
+  return {
+    id: session.id,
+    scheduledAt: session.scheduledAt,
+    endsAt: session.endsAt,
+    status: session.status,
+    duration: session.duration,
+    skillName: session.skill?.name || 'N/A',
+
+    partner: {
+      id: partner.id,
+      userName: partner.userName,
+      image: partner.image,
+    },
+  };
+});
+   const limit = query.limit!
+  // ===== Pagination calculations =====
+  const totalPages = Math.ceil(total /limit);
+
+  return {
+    user:{
+      id: user.id,
+      userName: user.userName,
+      image: user.image,
+      email:user.email
+    },
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      nextPage: page < totalPages ? page + 1 : null,
+      prevPage: page > 1 ? page - 1 : null,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+  };
+  }
+
 }

@@ -27,7 +27,7 @@ enum Availability {
 enum SkillLevel {
   BEGINNER
   INTERMEDIATE
-  EXPERT
+  ADVANCED
 }
 
 enum BadgeCategory {
@@ -99,7 +99,7 @@ enum TokenType {
 
 model User {
   id            String        @id @default(uuid())
-  userName      String?        @unique
+  userName      String?       
   email         String        @unique
   password      String
   phoneNumber   String?
@@ -110,7 +110,7 @@ model User {
   location      String?
   timezone      String        @default("UTC")
   availability  Availability?
-  isActive      Boolean       @default(true)
+  isActive      Boolean       @default(true) 
   isVerified    Boolean       @default(false)
   otpCode       String? 
   otpSendAt     DateTime?      @default(now())
@@ -123,6 +123,7 @@ model User {
   messagesRecv  Message[]     @relation("Receiver")
   badges        UserBadge[]
   points        Point[]
+  
   tokens        UserToken[]
   notifications Notification[]
   hostedSessions   Session[]  @relation("Host")
@@ -134,13 +135,32 @@ model User {
 
   feedbackGiven   Feedback[] @relation("FeedbackGiver")
   feedbackReceived Feedback[] @relation("FeedbackReceiver")
+  adminNotes AdminNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  restrictions UserRestriction[]
   @@map("users")
 }
+model UserRestriction {
+  id        String            @id @default(uuid())
+  user      User              @relation(fields: [userId], references: [id])
+  userId    String
+  type      RestrictionType
+  reason    String?            //  Ban / Suspension / Warning / Admin Note
+  createdAt DateTime           @default(now())
+  endAt     DateTime?          //  Ban أو Suspension
 
+  @@map("user-restrictions")
+
+}
+
+enum RestrictionType {
+  BAN
+  SUSPENSION
+  WARNING
+  ADMIN_NOTE
+}
 model Category {
   id          String   @id @default(uuid())
   name        String
@@ -169,7 +189,7 @@ model Skill {
   sessions Session[]
 
   createdAt DateTime @default(now())
-
+  @@unique([categoryId,name])
   @@map("skills")
 }
 
@@ -180,8 +200,11 @@ model UserSkill {
   skill             Skill       @relation(fields: [skillId], references: [id])
   skillId           String
   level             SkillLevel  @default(BEGINNER)
+  skillDescription  String?
   yearsOfExperience Int?
-  isOffering        Boolean
+  sessionLanguage     String?      @default("English")
+  isActive         Boolean      @default(true)
+  isOffering        Boolean     @default(true) 
 
   offeredInSwapRequests SwapRequest[] @relation("OfferedSkill")
   requestedInSwapRequests SwapRequest[] @relation("RequestedSkill")
@@ -461,4 +484,13 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
+}
+model AdminNote {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  adminId     String
+  reason      String?
+  externalNote String?
+  createdAt   DateTime @default(now())
 }

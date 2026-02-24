@@ -58,6 +58,7 @@ import { Public } from '@prisma/client/runtime/library';
 import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
 import { AddNoteToUser, AddUserActionDto, AddUserActionWithEndDateDto } from './dto/admin-add-user-action.dto';
 import { UserListQueryDto } from './dto/admin-user-list.dto';
+import { AdjustUserPointsDto } from './dto/admin-adjust-points-user.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -724,7 +725,41 @@ export class AdminController {
     @Param('userId') userId: string,
   ) {
     return await this.adminService.getAllUserBadges(userId);
+  }
 
+
+  // addPoints or Deduct Points
+  
+  @Post(':userId/points')
+  @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary: 'Adjust user points (Admin only)'})
+  @ApiParam({
+    name: 'userId',
+    description: 'UUID of the user',
+    example: 'c1f7b9a2-1234-4d89-9abc-123456789abc',
+  })
+  @ApiOkResponse({
+    description: 'User points adjusted successfully',
+    schema: {
+      example: {
+        message: 'User points adjusted successfully',
+        data: {
+          userId: 'c1f7b9a2-1234-4d89-9abc-123456789abc',
+          adjustedBy: -20,
+          currentPoints: 80,
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input' })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @ApiForbiddenResponse({ description: 'Access denied. Admins only.' })
+  async adjustUserPoints(
+    @Param('userId') userId: string,
+    @Body() dto: AdjustUserPointsDto,
+  ) {
+    return this.adminService.adjustUserPoints(userId, dto);
   }
 }
 

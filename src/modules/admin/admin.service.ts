@@ -27,6 +27,7 @@ import { GamificationService } from '../gamification/gamification.service';
 import { ApiOperation, ApiParam } from '@nestjs/swagger';
 import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
 import { UserListQueryDto } from './dto/admin-user-list.dto';
+import { AdjustUserPointsDto } from './dto/admin-adjust-points-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -272,5 +273,10 @@ export class AdminService {
   async getAllUserBadges(userId:string) {
      return this.gamificationService.getAllUserBadges(userId)
   }
+ 
   
+  // Points
+  async adjustUserPoints(userId:string , dto:AdjustUserPointsDto) {
+     return this.gamificationService.adjustUserPoints(userId , dto)
+  }
 }

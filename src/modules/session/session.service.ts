@@ -716,7 +716,51 @@ export class SessionService {
   // 2️⃣ Total sessions between both users
   const totalSessions = await this.prismaService.session.count({
     where: {
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+  const totalCompletedSessions = await this.prismaService.session.count({
+    where: {
       status: SessionStatus.COMPLETED,
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+    const totalScheduledSessions = await this.prismaService.session.count({
+    where: {
+      status: SessionStatus.SCHEDULED,
+      OR: [
+        {
+          hostId: session.hostId,
+          attendeeId: session.attendeeId,
+        },
+        {
+          hostId: session.attendeeId,
+          attendeeId: session.hostId,
+        },
+      ],
+    },
+  });
+    const totalCancelledSessions = await this.prismaService.session.count({
+    where: {
+      status: SessionStatus.CANCELLED,
       OR: [
         {
           hostId: session.hostId,
@@ -740,10 +784,60 @@ export class SessionService {
     session:session.id,
     sessionDuration: formattedDuration,
     totalSessions,
+    totalCompletedSessions,
+    totalScheduledSessions,
+    totalCancelledSessions,
     totalPoints: totalPoints._sum.amount || 0,
     gainedPoints: 50,
   };
 }
+
+
+// Get Session Status Summary for a User
+async getStatusSession(userId: string) {
+  const baseWhere = {
+    OR: [{ hostId: userId }, { attendeeId: userId }],
+  };
+
+  // Total sessions
+  const totalSessions = await this.prismaService.session.count({
+    where: baseWhere,
+  });
+
+  // Group by status to avoid multiple queries
+  const groupedStatuses = await this.prismaService.session.groupBy({
+    by: ['status'],
+    where: baseWhere,
+    _count: {
+      status: true,
+    },
+  });
+
+  // Initialize counters
+  let totalCompletedSessions = 0;
+  let totalScheduledSessions = 0;
+  let totalCancelledSessions = 0;
+
+  groupedStatuses.forEach((item) => {
+    if (item.status === SessionStatus.COMPLETED) {
+      totalCompletedSessions = item._count.status;
+    }
+    if (item.status === SessionStatus.SCHEDULED) {
+      totalScheduledSessions = item._count.status;
+    }
+    if (item.status === SessionStatus.CANCELLED) {
+      totalCancelledSessions = item._count.status;
+    }
+  });
+
+  return {
+    totalSessions,
+    totalCompletedSessions,
+    totalScheduledSessions,
+    totalCancelledSessions,
+  };
+}
+
   async getUserSessionsForAdmin(
     userId: string,
     query: AdminSessionsQueryDto,
@@ -920,4 +1014,5 @@ export class SessionService {
     },
   };
   }
+
 }

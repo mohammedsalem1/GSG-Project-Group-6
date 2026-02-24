@@ -332,6 +332,7 @@ export class SwapsService {
             id: true,
             status: true,
             scheduledAt: true,
+            endsAt:true
           },
         },
       },
@@ -346,9 +347,38 @@ export class SwapsService {
         'You are not allowed to access this request',
       );
     }
+     const isRequester = request.requesterId === userId;
 
-    return request;
-  }
+    return {
+     
+  id: request.id,
+  status: request.status,
+  createdAt: request.createdAt,
+  message: request.message,
+  session: {
+    id: request.session!.id,
+    status: request.session!.status,
+    scheduledAt: request.session!.scheduledAt,
+    endsAt: request.session!.endsAt, 
+  },
+  [isRequester ? 'provider' : 'seeker']: {
+    id: isRequester ? request.receiver.id : request.requester.id,
+    userName: isRequester ? request.receiver.userName : request.requester.userName,
+    image: isRequester ? request.receiver.image : request.requester.image,
+    requestedUserSkill:  request.requestedUserSkill.skill,
+    offeredUserSkill: request.offeredUserSkill.skill,
+    level: isRequester ? request.requestedUserSkill.level : request.offeredUserSkill.level,
+    skillDescription: isRequester ? request.requestedUserSkill.skillDescription : request.offeredUserSkill.skillDescription,
+    yearsOfExperience: isRequester ? request.requestedUserSkill.yearsOfExperience : request.offeredUserSkill.yearsOfExperience,
+    sessionLanguage: isRequester ? request.requestedUserSkill.sessionLanguage : request.offeredUserSkill.sessionLanguage,
+  },
+
+  requesterId: request.requesterId,
+  receiverId: request.receiverId,
+  offeredUserSkillId: request.offeredUserSkillId,
+  requestedUserSkillId: request.requestedUserSkillId,
+};
+}
 
   async acceptRequest(userId: string, requestId: string) {
     const request = await this.prismaService.swapRequest.findUnique({

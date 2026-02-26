@@ -18,6 +18,9 @@ import { SessionModule } from './modules/session/session.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { GamificationModule } from './modules/gamification/gamification.module';
+import { DisputeService } from './modules/dispute/dispute.service';
+import { DisputeController } from './modules/dispute/dispute.controller';
+import { DisputeModule } from './modules/dispute/dispute.module';
 
 @Module({
   imports: [
@@ -37,14 +40,16 @@ import { GamificationModule } from './modules/gamification/gamification.module';
     SessionModule,
     AdminModule,
     GamificationModule,
+    DisputeModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, DisputeController],
   providers: [
     AppService,
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
     },
+    DisputeService,
   ],
 })
 export class AppModule {}

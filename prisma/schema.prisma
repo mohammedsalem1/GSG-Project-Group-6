@@ -362,7 +362,7 @@ model Feedback {
   receiverId    String
   receiver      User     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
   
-  role          FeedbackCategory    @default(GENERAL)
+  role          FeedbackCategory    
 
   // ── Teaching-related ──
   sessionFocus        Int?   // where they focused the whole session
@@ -385,7 +385,7 @@ model Feedback {
 
   createdAt     DateTime @default(now())
 
-  @@unique([sessionId, giverId])
+  @@unique([sessionId, giverId , role])
   @@map("feedbacks")
 }
 enum FeedbackCategory {

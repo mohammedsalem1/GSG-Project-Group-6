@@ -54,7 +54,7 @@ export class FeedbackService {
   }
 
   const existingFeedback = await this.prismaService.feedback.findFirst({
-    where: { sessionId: dto.sessionId, giverId },
+    where: { sessionId: dto.sessionId, giverId , role},
   });
   if (existingFeedback) {
     throw new BadRequestException("You already gave feedback for this session");

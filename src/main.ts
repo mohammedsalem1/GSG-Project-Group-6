@@ -53,7 +53,9 @@ async function bootstrap() {
     .addTag('reviews', 'Reviews and ratings')
     .addTag('feedbacks', 'feedbacks panel endpoints')
     .addTag('gamification', 'Badges and points')
+    .addTag('disputes', 'create report by user')
     .addTag('admin', 'Admin panel endpoints')
+
     // .addTag('Admin - Dashboard', 'Admin dashboard analytics')
     // .addTag('Admin - User List', 'Admin user management')
     // .addTag('Admin - Sessions', 'Admin session management')

@@ -136,6 +136,7 @@ model User {
   feedbackGiven   Feedback[] @relation("FeedbackGiver")
   feedbackReceived Feedback[] @relation("FeedbackReceiver")
   adminNotes AdminNote[]
+  disputes    Dispute[]  @relation("DisputesReported")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -319,6 +320,7 @@ model Session {
   attendeeJoinedAt DateTime?
   
   feedbacks   Feedback[]
+  disputes    Dispute[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -493,4 +495,38 @@ model AdminNote {
   reason      String?
   externalNote String?
   createdAt   DateTime @default(now())
+}
+
+enum DisputeType {
+  SESSION_ISSUE
+  POINTS_ISSUE
+  USER_BEHAVIOR
+  TECHNICAL_PROBLEM
+  OTHER
+}
+
+enum DisputeStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+model Dispute {
+  id          String        @id @default(uuid())
+  type        DisputeType
+  description String?
+  screenshot  String?       // ImageKit URL
+  status      DisputeStatus @default(PENDING)
+  adminNotes  String?       // Admin response notes
+  
+  // Who submitted it
+  reporterId  String
+  reporter    User          @relation("DisputesReported", fields: [reporterId], references: [id])
+  
+  sessionId   String?
+  session     Session?      @relation(fields: [sessionId], references: [id])
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }

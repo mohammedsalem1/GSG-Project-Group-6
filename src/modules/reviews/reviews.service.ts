@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { session } from 'passport';
-import { PointType, Rating, SessionStatus } from '@prisma/client';
+import { PointType, Prisma, Rating, SessionStatus } from '@prisma/client';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { GetReviewsReceivedDto } from './dto/get-review-received.dto';
 import { calculateAvgRating } from 'src/common/utils/rating.utils';
@@ -82,71 +82,142 @@ export class ReviewsService {
 
    //   })
    //  }
-    async getUserSkillReviewsReceived(userId:string , query:GetReviewsReceivedDto) {
-        // check userSkill is exist 
-        const userSkill = await this.prismaService.userSkill.findFirst({
+   //  async getUserSkillReviewsReceived(userId:string , query:GetReviewsReceivedDto) {
+   //      // check userSkill is exist 
+   //      const userSkill = await this.prismaService.userSkill.findFirst({
+   //          where: {
+   //             userId,
+   //             skillId: query.skillId,
+   //          },
+   //       });
+   //      if (!userSkill) {
+   //         throw new NotFoundException('User does not have this skill')
+   //      }
+   //      const pagination = this.prismaService.handleQueryPagination({
+   //         page: query.page,
+   //         limit: query.limit,
+   //      });
+
+   //      const { page, ...removePage } = pagination;
+
+   //      const reviewsForSkill = await this.prismaService.review.findMany({
+   //        ...removePage,
+   //       where: {
+   //          reviewedId:userId,
+   //          userSkillId:userSkill.id, 
+   //          isVerified:true,
+   //          isPublic: true,
+   //       },
+   //       select: {
+   //          id:true,
+   //          comment:true , 
+   //          reviewer:{
+   //             select: {
+   //                id:true,
+   //                userName:true,
+   //                image:true,
+   //             }
+   //          },
+   //          userSkill:{
+   //             select:{
+   //                skill:true            
+   //             }
+   //          }
+   //       },
+   //          orderBy: {
+   //            createdAt: 'desc',
+   //       },
+   //      })
+   //      const count  = await this.prismaService.review.count({
+   //       where:{  
+   //          reviewedId:userId,
+   //          userSkillId:userSkill.id,
+   //          isVerified:true,
+   //          isPublic: true
+   //       }})
+
+
+   //    //   const avgRatingUserSkill = calculateAvgRating(ratingsArray)
+   //    //   console.log(avgRatingUserSkill);
+
+   //      return {
+   //          review:reviewsForSkill , 
+   //          // avgRatingUserSkill,
+   //          ...this.prismaService.formatPaginationResponse({ page,count, limit: pagination.take})
+   //       };
+   //  }
+    async getUserSkillReviewsReceived(
+      userId: string,
+      query: GetReviewsReceivedDto,
+      ) {
+
+      const pagination = this.prismaService.handleQueryPagination({
+         page: query.page,
+         limit: query.limit,
+      });
+
+      const { page, ...removePage } = pagination;
+
+      const whereCondition: Prisma.ReviewWhereInput = {
+         reviewedId: userId,
+         isVerified: true,
+         isPublic: true,
+      };
+
+      if (query.skillId) {
+
+         const userSkill = await this.prismaService.userSkill.findFirst({
             where: {
-               userId,
-               skillId: query.skillId,
+            userId,
+            skillId: query.skillId,
             },
          });
-        if (!userSkill) {
-           throw new NotFoundException('User does not have this skill')
-        }
-        const pagination = this.prismaService.handleQueryPagination({
-           page: query.page,
-           limit: query.limit,
-        });
 
-        const { page, ...removePage } = pagination;
+         if (!userSkill) {
+            throw new NotFoundException('User does not have this skill');
+         }
 
-        const reviewsForSkill = await this.prismaService.review.findMany({
-          ...removePage,
-         where: {
-            reviewedId:userId,
-            userSkillId:userSkill.id, 
-            isVerified:true,
-            isPublic: true,
-         },
+         whereCondition.userSkillId = userSkill.id;
+      }
+
+      const reviews = await this.prismaService.review.findMany({
+         ...removePage,
+         where: whereCondition,
          select: {
-            id:true,
-            comment:true , 
-            reviewer:{
-               select: {
-                  id:true,
-                  userName:true,
-                  image:true,
-               }
+            id: true,
+            comment: true,
+            overallRating: true,
+            reviewer: {
+            select: {
+               id: true,
+               userName: true,
+               image: true,
             },
-            userSkill:{
-               select:{
-                  skill:true            
-               }
-            }
+            },
+            userSkill: {
+            select: {
+               skill: true,
+            },
+            },
          },
-            orderBy: {
-              createdAt: 'desc',
+         orderBy: {
+            createdAt: 'desc',
          },
-        })
-        const count  = await this.prismaService.review.count({
-         where:{  
-            reviewedId:userId,
-            userSkillId:userSkill.id,
-            isVerified:true,
-            isPublic: true
-         }})
+      });
 
+      const count = await this.prismaService.review.count({
+         where: whereCondition,
+      });
 
-      //   const avgRatingUserSkill = calculateAvgRating(ratingsArray)
-      //   console.log(avgRatingUserSkill);
-
-        return {
-            review:reviewsForSkill , 
-            // avgRatingUserSkill,
-            ...this.prismaService.formatPaginationResponse({ page,count, limit: pagination.take})
-         };
-    }
-    
+      return {
+         review: reviews,
+         ...this.prismaService.formatPaginationResponse({
+            page,
+            count,
+            limit: pagination.take,
+         }),
+      };
+      }
     async getUserReviewsReceived(userId:string, query:PaginationDto) {
       const pagination = this.prismaService.handleQueryPagination({
            page: query.page,

@@ -123,7 +123,7 @@ export class ReviewsController {
 
 
     @Get(':userId/received') 
-    @ApiOperation({ summary: 'Get reviews received by a user for a specific skill'})
+    @ApiOperation({ summary: 'Get reviews received by a user (optionally filter by skill)' })
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth('JWT-auth')
     @ApiOkResponse({ description: 'Reviews fetched successfully',
@@ -133,7 +133,7 @@ export class ReviewsController {
                 data: {
                     "review": [
                     {
-                        "id": "37ffef88-3c0c-4dbc-8cf3-a9dacd7ddd01",
+                        "id": "review-id",
                         "comment": "Great session!",
                         "overallRating": "FIVE",
                         "reviewer": {
@@ -143,7 +143,7 @@ export class ReviewsController {
                         },
                         "userSkill": {
                         "skill": {
-                            "id": "faa846ec-df6b-4dad-9671-12221c2928ce",
+                            "id": "skill-id",
                             "name": "Ui-Ux",
                             "description": "Web developer",
                             "isActive": true,
@@ -167,7 +167,7 @@ export class ReviewsController {
      })
     @ApiNotFoundResponse({ description: 'User skill has no review' })
     @HttpCode(HttpStatus.OK)
-    @ApiQuery({ name: 'skillId', description: 'Skill ID to filter reviews', required: true })
+    @ApiQuery({ name: 'skillId', description: 'Skill ID to filter reviews', required: false  })
     async getUserSkillReviewsReceived(
         @Param('userId') userId:string,
         @Query() query:GetReviewsReceivedDto

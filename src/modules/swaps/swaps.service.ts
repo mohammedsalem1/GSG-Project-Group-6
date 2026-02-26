@@ -294,12 +294,6 @@ export class SwapsService {
                 id: true,
                 name: true,
                 description: true,
-                category: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
               },
             },
           },
@@ -311,20 +305,8 @@ export class SwapsService {
                 id: true,
                 name: true,
                 description: true,
-                category: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
               },
             },
-          },
-        },
-        conversation: {
-          select: {
-            id: true,
-            isArchived: true,
           },
         },
         session: {

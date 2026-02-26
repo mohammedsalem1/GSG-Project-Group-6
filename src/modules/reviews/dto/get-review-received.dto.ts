@@ -1,13 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
 import { PaginationDto } from "src/common/dto/pagination.dto";
 
 export class GetReviewsReceivedDto extends PaginationDto {
+
   @ApiProperty({
-    example: 'uuid-of-skill',
-    description: 'Skill ID for which reviews are fetched',
+    description: 'Skill ID to filter reviews',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsUUID()
-  skillId: string;
+  skillId?: string;
 }

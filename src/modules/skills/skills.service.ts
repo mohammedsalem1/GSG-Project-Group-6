@@ -199,10 +199,15 @@ export class SkillsService {
       },
       ...(query.level && { level: query.level }),
       //  ...(query.isOffering !== undefined && { isOffering: query.isOffering }),
-
+   ...(query.language && {
+      sessionLanguage: {
+        contains: query.language, 
+        mode: 'insensitive',
+      },
+    }),
       skill: {
         isActive: true,
-        ...(query.language && { language: { contains: query.language } }),
+        // ...(query.language && { language: { contains: query.language } }),
       },
     };
 
@@ -235,6 +240,7 @@ export class SkillsService {
             userName: item.user.userName ?? '',
             image: item.user.image,
             level: item.level,
+            sessionLanguage:item.sessionLanguage,
             yearsOfExperience: item.yearsOfExperience,
             bio: item.user.bio,
             receivedSwaps: item.user._count.receivedSwaps,

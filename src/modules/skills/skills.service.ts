@@ -803,30 +803,6 @@ export class SkillsService {
     };
   }
 
-  /**
-   * Admin: Delete a skill (soft delete by setting isActive to false)
-   */
-  async deleteSkillForAdmin(skillId: string): Promise<{ message: string }> {
-    const skill = await this.prismaService.skill.findUnique({
-      where: { id: skillId },
-    });
-
-    if (!skill) {
-      throw new NotFoundException('Skill not found');
-    }
-
-    if (!skill.isActive) {
-      throw new BadRequestException('Skill is already deleted');
-    }
-
-    await this.prismaService.skill.update({
-      where: { id: skillId },
-      data: { isActive: false },
-    });
-
-    return { message: 'Skill deleted successfully' };
-  }
-
   async searchAndFilterSkills(query: {
     name?: string;
     availability?: Availability;

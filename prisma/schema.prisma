@@ -530,3 +530,91 @@ model Dispute {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
+
+//////////////////////
+// PLATFORM SETTINGS
+//////////////////////
+
+enum MessageChannel {
+  EMAIL
+  IN_APP
+  BOTH
+}
+
+enum PolicyType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  COMMUNITY_GUIDELINES
+}
+
+enum NotificationPreferenceType {
+  EMAIL_NOTIFICATIONS
+  IN_APP_NOTIFICATIONS
+  DISPUTE_ALERTS
+  REPORT_ALERTS
+}
+
+model PlatformSettings {
+  id                String     @id @default(uuid())
+  platformName      String     @default("SkillSwap")
+  defaultLanguage   String     @default("English")
+  defaultTimezone   String     @default("UTC")
+  dateFormat        String     @default("YYYY-MM-DD")
+  status            String     @default("LIVE") // LIVE, MAINTENANCE, PAUSED
+  supportEmail      String     @default("support@skillswap.com")
+  contactPhone      String?
+  socialLinks       Json?      @default("{}")  // {linkedin, twitter, facebook, instagram}
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@map("platform_settings")
+}
+
+model MessageTemplate {
+  id                String            @id @default(uuid())
+  name              String
+  triggerEvent      String            // e.g., "SWAP_REQUEST", "SESSION_REMINDER", "BADGE_UNLOCKED"
+  subject           String?           // For EMAIL channel
+  body              String            @db.Text  // HTML/Markdown template with {{variables}}
+  variables         Json?             @default("[]")  // Array of variable names like ["userName", "skillName"]
+  channel           MessageChannel    @default(BOTH)
+  isActive          Boolean           @default(true)
+  category          String?           // e.g., "swap", "session", "notification"
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([name])
+  @@index([triggerEvent])
+  @@index([isActive])
+  @@map("message_templates")
+}
+
+model PolicySection {
+  id                String      @id @default(uuid())
+  policyType        PolicyType
+  sectionTitle      String
+  sectionContent    String      @db.Text  // HTML content
+  sectionOrder      Int         @default(0)  // For ordering sections within a policy type
+  version           Int         @default(1)
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([policyType, sectionTitle])
+  @@index([policyType])
+  @@map("policy_sections")
+}
+
+model NotificationPreference {
+  id                String                        @id @default(uuid())
+  type              NotificationPreferenceType
+  isEnabled         Boolean                       @default(true)
+  
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+
+  @@unique([type])
+  @@map("notification_preferences")
+}

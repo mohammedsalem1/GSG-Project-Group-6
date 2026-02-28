@@ -1,5 +1,6 @@
 import { BadgeCategory, PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+import * as bcrypt from 'bcrypt';
 
 async function main() {
   await prisma.review.deleteMany({});
@@ -9,7 +10,30 @@ async function main() {
   await prisma.userSkill.deleteMany({});
   await prisma.skill.deleteMany({});
   await prisma.category.deleteMany({});
+  await prisma.userBadge.deleteMany({});
+  await prisma.badge.deleteMany({});
+ 
+  console.log('👑 Creating admin user...');
 
+  const adminEmail = 'admin@admin.com';
+  const adminPassword = '123456';
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      email: adminEmail,
+      password: hashedPassword,
+      isVerified:true,
+      userName: 'Admin',
+      role: 'ADMIN', // تأكد أن عندك enum Role فيه ADMIN
+      isActive: true,
+    },
+  });
+
+  console.log('✅ Admin user created successfully');
   // Categories + realistic skills (1000+)
   const categoriesData = [
     {

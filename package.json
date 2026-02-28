@@ -4,7 +4,7 @@
     "node": "20.x"
   },
   "version": "0.0.1",
-  "description": "",
+  "description": "The **Skill Swap Platform** is a collaborative web application that enables users to exchange skills with each other.  \r Instead of paying money, users can offer their own skills in return for learning new ones.  \r The platform encourages knowledge sharing, collaboration, and community growth.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -96,5 +96,9 @@
     },
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "main": "index.js",
+  "directories": {
+    "test": "test"
   }
 }

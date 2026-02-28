@@ -420,43 +420,54 @@ export class SkillsService {
   }
 
   async getTrendingSkillsThisWeek() {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1);
-    startOfWeek.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date();
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1);
+  startOfWeek.setHours(0, 0, 0, 0);
 
-    const sessions = await this.prismaService.session.findMany({
-      where: {
-        skillId: { not: null },
-        createdAt: { gte: startOfWeek },
-        status: 'COMPLETED',
+  // Fetch completed sessions this week with skill relation
+  const sessions = await this.prismaService.session.findMany({
+    where: {
+      skillId: { not: null },
+      createdAt: { gte: startOfWeek },
+      status: 'COMPLETED',
+    },
+    include: {
+      skill: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+        },
       },
-      select: {
-        skillId: true,
-      },
-    });
+    },
+  });
 
-    const countMap = new Map<string, number>();
+  // Count how many times each skill appears
+  const countMap = new Map<string, { skill: any; count: number }>();
+  sessions.forEach((s) => {
+    if (!s.skill) return;
+    const existing = countMap.get(s.skill.id);
+    if (existing) {
+      existing.count += 1;
+      countMap.set(s.skill.id, existing);
+    } else {
+      countMap.set(s.skill.id, { skill: s.skill, count: 1 });
+    }
+  });
 
-    sessions.forEach((s) => {
-      if (!s.skillId) return;
-      countMap.set(s.skillId, (countMap.get(s.skillId) || 0) + 1);
-    });
+  // Get top 10 trending skills
+  const trending = [...countMap.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 
-    const trending = [...countMap.entries()]
-      .map(([skillId, count]) => ({ skillId, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // limit 10
-
-    const skills = await this.prismaService.skill.findMany({
-      where: { id: { in: trending.map((t) => t.skillId) } },
-      select: { id: true, name: true },
-    });
-
-    return trending.map((t) => ({
-      skillName: skills.find((s) => s.id === t.skillId)?.name || 'Unknown',
-      learningCount: t.count,
-    }));
-  }
+  // Map to response
+  return trending.map((t) => ({
+    skillId: t.skill.id,
+    skillName: t.skill.name,
+    category: t.skill.category,
+    learningCount: t.count,
+  }));
+}
 
   async getRecommendedUserSkills(userId: string) {
     const ids = await this.getUserCategories(userId);

@@ -28,6 +28,8 @@ import { ApiOperation, ApiParam } from '@nestjs/swagger';
 import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
 import { UserListQueryDto } from './dto/admin-user-list.dto';
 import { AdjustUserPointsDto } from './dto/admin-adjust-points-user.dto';
+import { GetDisputesQueryDto } from '../dispute/dto';
+import { DisputeService } from '../dispute/dispute.service';
 
 @Injectable()
 export class AdminService {
@@ -39,7 +41,8 @@ export class AdminService {
     private readonly skillsService: SkillsService,
     private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
-    private readonly gamificationService:GamificationService
+    private readonly gamificationService:GamificationService,
+    private readonly disputeService: DisputeService
   ) {}
 
   /**
@@ -278,5 +281,10 @@ export class AdminService {
   // Points
   async adjustUserPoints(userId:string , dto:AdjustUserPointsDto) {
      return this.gamificationService.adjustUserPoints(userId , dto)
+  }
+
+  // gtet All dispute from user
+  async getUserDisputes(userId:string , dto: GetDisputesQueryDto) {
+      return this.disputeService.getMyDisputes(userId , dto)
   }
 }

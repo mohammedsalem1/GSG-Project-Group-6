@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsEnum, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DisputeStatus } from '@prisma/client';
 
@@ -26,4 +26,23 @@ export class GetDisputesQueryDto {
   @Min(1)
   @Max(50)
   limit?: number = 10;
+
+  @ApiPropertyOptional({ description: 'Start date for filtering (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+  
+  @ApiPropertyOptional({ description: 'End date for filtering (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+  
+  @ApiPropertyOptional({
+      description: 'Sort order',
+      enum: ['newest', 'oldest'],
+      default: 'newest',
+  })
+  @IsOptional()
+  @IsString()
+  sort?: 'newest' | 'oldest' = 'newest';
 }

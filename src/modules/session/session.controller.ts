@@ -28,6 +28,7 @@ import {
   CancelSessionDto,
   CompleteSessionDto,
   GetSessionsQueryDto,
+  RescheduleSessionDto,
 } from './dto';
 
 @ApiTags('sessions')
@@ -217,6 +218,42 @@ export class SessionController {
   ) {
     return this.sessionService.getSessionById(user.id, id);
   }
+  
+  // added summary session completed
+  @Get(':id/summary')
+  @ApiOperation({ summary: 'Get session summary after completion' })
+  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiOkResponse({
+    description: 'Session summary retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          sessionId: 'session-id',
+          sessionDuration: '1h 30m',
+          totalSessions: 12,
+          totalPoints: 100,
+          gainedPoints: 10,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Session not found' })
+  @ApiForbiddenResponse({
+    description: 'You are not authorized to view this session summary',
+  })
+  @ApiBadRequestResponse({
+    description: 'Session is not completed yet',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getSessionSummary(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ) {
+    return await this.sessionService.getSessionSummary(user.id, id);
+  }
 
   @Patch(':id/complete')
   @ApiOperation({ summary: 'Mark session as completed' })
@@ -285,42 +322,36 @@ export class SessionController {
     return this.sessionService.cancelSession(user.id, id, dto.reason);
   }
 
-  // added summary session completed
-  @Get(':id/summary')
-  @ApiOperation({ summary: 'Get session summary after completion' })
+  @Patch(':id/reschedule')
+  @ApiOperation({ summary: 'reschedule session' })
   @ApiParam({ name: 'id', description: 'Session ID' })
   @ApiOkResponse({
-    description: 'Session summary retrieved successfully',
+    description: 'Session reschedule successfully',
     schema: {
       example: {
         success: true,
         data: {
-          sessionId: 'session-id',
-          sessionDuration: '1h 30m',
-          totalSessions: 12,
-          totalPoints: 100,
-          gainedPoints: 10,
+          id: 'session-id',
+          status: 'reschedule',
+          updatedAt: '2026-02-08T10:00:00.000Z',
         },
       },
     },
   })
   @ApiNotFoundResponse({ description: 'Session not found' })
   @ApiForbiddenResponse({
-    description: 'You are not authorized to view this session summary',
+    description: 'You are not authorized to reschedule this session',
   })
   @ApiBadRequestResponse({
-    description: 'Session is not completed yet',
+    description: 'Only scheduled sessions can be reschedule',
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  async getSessionSummary(
+  async rescheduleSession(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
+    @Body() dto: RescheduleSessionDto,
   ) {
-    return await this.sessionService.getSessionSummary(user.id, id);
-
-
+    return this.sessionService.rescheduleSession(user.id, id , dto);
   }
 
 }

@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { SessionStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { CompleteSessionDto, GetSessionsQueryDto } from './dto';
+import { CompleteSessionDto, GetSessionsQueryDto, RescheduleSessionDto } from './dto';
 import { AdminSessionsQueryDto } from '../admin/dto/admin-sessions.dto';
 import { hostname } from 'os';
 import { UserService } from '../user/user.service';
@@ -451,6 +451,83 @@ export class SessionService {
     }));
   }
 
+  // add reschedul session
+  async rescheduleSession(userId: string, sessionId: string , dto:RescheduleSessionDto) {
+    const session = await this.prismaService.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    // Only host or attendee can cancel
+    if (session.hostId !== userId && session.attendeeId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to reschedule this session',
+      );
+    }
+
+    // Only scheduled  sessions can be RESCHEDULED
+    if (
+      session.status !== SessionStatus.SCHEDULED
+    ) {
+      throw new BadRequestException('Only scheduled sessions can be RESCHEDULED');
+    }
+
+    if (!dto.date || !dto.startAt || !dto.endAt) {
+      throw new BadRequestException('Date and time are required');
+    }
+
+    const startAt = new Date(
+      `${dto.date}T${dto.startAt}:00`
+    );
+
+    const endAt = new Date(
+      `${dto.date}T${dto.endAt}:00`
+    );
+
+    if (endAt <= startAt) {
+      throw new BadRequestException('End time must be after start time');
+    }
+    if (startAt <= new Date()) {
+      throw new BadRequestException(
+        'Session must be scheduled in the future',
+    );
+  }
+    const durationMinutes = Math.floor(
+      (endAt.getTime() - startAt.getTime()) / (1000 * 60)
+    );
+
+    // const expiresAt = new Date();
+    // expiresAt.setDate(expiresAt.getDate() + 7);
+    
+    const updatedSession =  await this.prismaService.session.update({
+      where: { id: sessionId },
+      data: {
+        scheduledAt:startAt,
+        endsAt:endAt,
+        duration:durationMinutes,
+      },
+    });
+    // Notify the other user
+    const otherUserId =
+      userId === session.hostId ? session.attendeeId : session.hostId;
+
+    await this.prismaService.notification.create({
+      data: {
+        userId: otherUserId,
+        type: 'SYSTEM',
+        title: 'Session Reschedual',
+        message: `Your session is Rescheduled for ${startAt.toLocaleString()}`,
+
+        data: { sessionId: session.id },
+      },
+    });
+
+    return updatedSession;
+  }
+
   /**
    * Requests vs sessions by week in the month (for bar chart).
    * Week1 = days 1-7, Week2 = 8-14, Week3 = 15-21, Week4 = 22-end.
@@ -702,7 +779,7 @@ export class SessionService {
 
   if (!session) throw new NotFoundException();
   if (session.status !== SessionStatus.COMPLETED)
-    throw new BadRequestException();
+    throw new BadRequestException('the session not completed');
 
   // 1️⃣ Duration
     const durationMinutes = Number(session.duration)
@@ -759,7 +836,7 @@ export class SessionService {
       where:{id:userId},
       select: {
         id:true,
-        userName     :true,
+        userName:true,
         email:true,
         image:true
     }})

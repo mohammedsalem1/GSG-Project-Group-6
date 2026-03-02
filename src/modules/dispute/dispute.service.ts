@@ -59,7 +59,7 @@ export class DisputeService {
         type: dto.type,
         description: dto.description,
         screenshot: dto.screenshot,
-        sessionId: dto.sessionId,
+        sessionId: dto.sessionId ,
         reporterId,
       },
       select: {
@@ -87,18 +87,42 @@ export class DisputeService {
   }
 
   async getMyDisputes(reporterId: string, query: GetDisputesQueryDto) {
-    const { status, page = 1, limit = 10 } = query;
+    const { status, page = 1, limit = 10 , sort , startDate,
+    endDate,} = query;
+    
     const skip = (page - 1) * limit;
 
     const where: any = { reporterId };
     if (status) where.status = status;
+    
+    // Filter by date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      where.createdAt = {
+        gte: start,
+        lte: end,
+      };
+    }
+    const user = await this.prismaService.user.findUnique({
+      where:{id:reporterId},
+      select: {
+        id:true,
+        userName:true,
+        email:true,
+        image:true
+    }})
 
     const [disputes, total] = await Promise.all([
       this.prismaService.dispute.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: {
+          createdAt: sort === 'newest' ? 'desc' : 'asc',
+         },
         select: {
           id: true,
           type: true,
@@ -114,7 +138,9 @@ export class DisputeService {
               title: true,
             },
           },
+          
         },
+
       }),
       this.prismaService.dispute.count({ where }),
     ]);
@@ -122,6 +148,7 @@ export class DisputeService {
     const totalPages = Math.ceil(total / limit);
 
     return {
+      user,
       disputes,
       pagination: {
         total,

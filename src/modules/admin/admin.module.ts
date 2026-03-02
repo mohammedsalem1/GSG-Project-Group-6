@@ -8,6 +8,7 @@ import { SwapsModule } from '../swaps/swaps.module';
 import { FeedbackModule } from '../feedback/feedback.module';
 import { SkillsModule } from '../skills/skills.module';
 import { GamificationModule } from '../gamification/gamification.module';
+import { DisputeModule } from '../dispute/dispute.module';
 
 
 @Module({
@@ -17,7 +18,8 @@ import { GamificationModule } from '../gamification/gamification.module';
     SwapsModule,
     FeedbackModule,
     SkillsModule,
-    GamificationModule
+    GamificationModule,
+    DisputeModule
   ],
   controllers: [
     AdminController,

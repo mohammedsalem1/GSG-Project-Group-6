@@ -59,6 +59,7 @@ import { UpdateBadgeRequirementDto } from './dto/admin-update-badge.dto';
 import { AddNoteToUser, AddUserActionDto, AddUserActionWithEndDateDto } from './dto/admin-add-user-action.dto';
 import { UserListQueryDto } from './dto/admin-user-list.dto';
 import { AdjustUserPointsDto } from './dto/admin-adjust-points-user.dto';
+import { GetDisputesQueryDto } from '../dispute/dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -761,5 +762,50 @@ export class AdminController {
   ) {
     return this.adminService.adjustUserPoints(userId, dto);
   }
+
+  // get All report user for Admin
+   @Get(':userId/disputes')
+   @ApiOperation({ summary: 'Get User disputes by userId' })
+   @ApiOkResponse({
+      description: 'Disputes retrieved successfully',
+      schema: {
+        example: {
+          success: true,
+          data: {
+            disputes: [
+              {
+                id: 'dispute-id',
+                type: 'POINTS_ISSUE',
+                description: 'Points were not credited after session',
+                status: 'PENDING',
+                adminNotes: null,
+                createdAt: '2026-02-26T00:00:00.000Z',
+                session: null,
+              },
+            ],
+            pagination: {
+              total: 1,
+              page: 1,
+              limit: 10,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            },
+          },
+        },
+      },
+    })
+   @ApiParam({
+    name: 'userId',
+    example: 'uuid-user-id',
+    description: 'The ID of the user',
+  })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+    async getUserDisputes(
+      @Param('userId') userId: string,
+      @Query() query: GetDisputesQueryDto,
+    ) {
+      return this.adminService.getUserDisputes(userId, query);
+    }
 }
 

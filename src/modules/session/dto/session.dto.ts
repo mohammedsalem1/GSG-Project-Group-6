@@ -1,6 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SessionStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class GetSessionsQueryDto extends PaginationDto {
@@ -40,4 +40,25 @@ export class CancelSessionDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+
+export class RescheduleSessionDto {
+  @ApiProperty({ example: '2026-02-04' })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  date: string;
+
+  @ApiProperty({ example: '14:00' })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+  startAt: string;
+
+  @ApiProperty({ example: '15:30' })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+  endAt: string;
 }

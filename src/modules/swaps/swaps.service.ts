@@ -475,7 +475,7 @@ export class SwapsService {
         rejectionReason: reason ?? null,
       },
     });
-
+   
     await this.prismaService.notification.create({
       data: {
         userId: request.requesterId,
